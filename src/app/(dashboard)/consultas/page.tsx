@@ -128,6 +128,24 @@ export default function ConsultasPage() {
     alert(`Consulta de ${inquiry.name} pasada al pipeline (funcionalidad conectada con DB)`)
   }
 
+  const parseMetaDate = (dateStr: string): string => {
+    if (!dateStr) return new Date().toISOString()
+    try {
+      const d = new Date(dateStr)
+      return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString()
+    } catch {
+      return new Date().toISOString()
+    }
+  }
+
+  const buildSource = (row: Record<string, string>): string => {
+    const origen = row['Origen'] || ''
+    const canal = row['Canal'] || ''
+    if (origen && canal) return `Meta Ads · ${origen} · ${canal}`
+    if (origen) return `Meta Ads · ${origen}`
+    return row['source'] || row['Origen'] || 'CSV Import'
+  }
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -139,15 +157,19 @@ export default function ConsultasPage() {
         const rows = results.data as Record<string, string>[]
         const parsed: Inquiry[] = rows.map((row, i) => ({
           id: `csv-${i}-${Date.now()}`,
-          name: row['nombre'] || row['name'] || row['Name'] || `Contacto ${i + 1}`,
-          email: row['email'] || row['Email'] || row['correo'] || null,
-          phone: row['telefono'] || row['phone'] || row['Phone'] || row['teléfono'] || null,
-          message: row['mensaje'] || row['message'] || row['Message'] || null,
-          source: 'CSV Import',
+          // Meta Business: "Nombre" | genérico: "nombre", "name"
+          name: row['Nombre'] || row['nombre'] || row['name'] || row['Name'] || `Contacto ${i + 1}`,
+          // Meta Business: "Correo electrónico" | genérico: "email", "correo"
+          email: row['Correo electrónico'] || row['email'] || row['Email'] || row['correo'] || null,
+          // Meta Business: "Teléfono" | genérico: "telefono", "phone"
+          phone: row['Teléfono'] || row['telefono'] || row['phone'] || row['Phone'] || row['teléfono'] || null,
+          // Meta Business: "Formulario" = nombre del aviso/campaña → va como mensaje
+          message: row['Formulario'] || row['mensaje'] || row['message'] || row['Message'] || null,
+          source: buildSource(row),
           propertyId: null,
           contactId: null,
           status: 'NUEVA',
-          createdAt: new Date().toISOString(),
+          createdAt: parseMetaDate(row['Fecha de creación'] || row['fecha'] || ''),
           updatedAt: new Date().toISOString(),
         }))
         setCsvPreview(parsed)
@@ -243,8 +265,8 @@ export default function ConsultasPage() {
                 <TableHead>Nombre</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Teléfono</TableHead>
-                <TableHead>Mensaje</TableHead>
-                <TableHead>Fuente</TableHead>
+                <TableHead>Formulario / Aviso</TableHead>
+                <TableHead>Origen</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead>Fecha</TableHead>
                 <TableHead>Acciones</TableHead>
