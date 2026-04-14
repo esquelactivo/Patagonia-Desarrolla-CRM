@@ -128,6 +128,22 @@ export default function ConsultasPage() {
     alert(`Consulta de ${inquiry.name} pasada al pipeline (funcionalidad conectada con DB)`)
   }
 
+  // Busca un campo en la fila ignorando BOM, espacios, mayúsculas y acentos
+  const getCol = (row: Record<string, string>, ...candidates: string[]): string | null => {
+    const normalize = (s: string) =>
+      s.replace(/\uFEFF/g, '').trim().toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    const rowKeys = Object.keys(row)
+    for (const candidate of candidates) {
+      const norm = normalize(candidate)
+      const found = rowKeys.find(k => normalize(k) === norm)
+      if (found !== undefined && row[found] !== undefined && row[found] !== '') {
+        return row[found]
+      }
+    }
+    return null
+  }
+
   const parseMetaDate = (dateStr: string): string => {
     if (!dateStr) return new Date().toISOString()
     try {
@@ -138,14 +154,6 @@ export default function ConsultasPage() {
     }
   }
 
-  const buildSource = (row: Record<string, string>): string => {
-    const origen = row['Origen'] || ''
-    const canal = row['Canal'] || ''
-    if (origen && canal) return `Meta Ads · ${origen} · ${canal}`
-    if (origen) return `Meta Ads · ${origen}`
-    return row['source'] || row['Origen'] || 'CSV Import'
-  }
-
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -153,25 +161,30 @@ export default function ConsultasPage() {
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
+      encoding: 'UTF-8',
       complete: (results) => {
         const rows = results.data as Record<string, string>[]
-        const parsed: Inquiry[] = rows.map((row, i) => ({
-          id: `csv-${i}-${Date.now()}`,
-          // Meta Business: "Nombre" | genérico: "nombre", "name"
-          name: row['Nombre'] || row['nombre'] || row['name'] || row['Name'] || `Contacto ${i + 1}`,
-          // Meta Business: "Correo electrónico" | genérico: "email", "correo"
-          email: row['Correo electrónico'] || row['email'] || row['Email'] || row['correo'] || null,
-          // Meta Business: "Teléfono" | genérico: "telefono", "phone"
-          phone: row['Teléfono'] || row['telefono'] || row['phone'] || row['Phone'] || row['teléfono'] || null,
-          // Meta Business: "Formulario" = nombre del aviso/campaña → va como mensaje
-          message: row['Formulario'] || row['mensaje'] || row['message'] || row['Message'] || null,
-          source: buildSource(row),
-          propertyId: null,
-          contactId: null,
-          status: 'NUEVA',
-          createdAt: parseMetaDate(row['Fecha de creación'] || row['fecha'] || ''),
-          updatedAt: new Date().toISOString(),
-        }))
+        const parsed: Inquiry[] = rows.map((row, i) => {
+          const origen = getCol(row, 'Origen', 'origen', 'source') || ''
+          const canal = getCol(row, 'Canal', 'canal', 'channel') || ''
+          const source = origen || canal
+            ? `Meta Ads${origen ? ' · ' + origen : ''}${canal ? ' · ' + canal : ''}`
+            : 'CSV Import'
+          const dateRaw = getCol(row, 'Fecha de creación', 'fecha de creacion', 'fecha', 'date', 'created_at') || ''
+          return {
+            id: `csv-${i}-${Date.now()}`,
+            name: getCol(row, 'Nombre', 'nombre completo', 'nombre', 'name', 'full name') || `Contacto ${i + 1}`,
+            email: getCol(row, 'Correo electrónico', 'correo electronico', 'email', 'correo', 'e-mail') || null,
+            phone: getCol(row, 'Teléfono', 'telefono', 'phone', 'número de teléfono', 'numero de telefono', 'cel', 'celular') || null,
+            message: getCol(row, 'Formulario', 'formulario', 'mensaje', 'message', 'form') || null,
+            source,
+            propertyId: null,
+            contactId: null,
+            status: 'NUEVA',
+            createdAt: parseMetaDate(dateRaw),
+            updatedAt: new Date().toISOString(),
+          }
+        })
         setCsvPreview(parsed)
         setCsvModalOpen(true)
       },
