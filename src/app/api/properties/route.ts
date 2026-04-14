@@ -32,7 +32,6 @@ export async function POST(request: Request) {
         area: body.area ? parseFloat(body.area) : null,
         images: body.images || [],
         features: body.features || [],
-        userId: 'demo-user-1',
       },
     })
     return NextResponse.json(property, { status: 201 })

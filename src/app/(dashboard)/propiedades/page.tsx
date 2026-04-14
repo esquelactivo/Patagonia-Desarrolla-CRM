@@ -118,6 +118,7 @@ export default function PropiedadesPage() {
   const [editProp, setEditProp] = useState<Property | null>(null)
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -130,7 +131,7 @@ export default function PropiedadesPage() {
       const res = await fetch('/api/properties')
       if (res.ok) {
         const data = await res.json()
-        setProperties(data.length > 0 ? data : mockProperties)
+        setProperties(data)
       } else {
         setProperties(mockProperties)
       }
@@ -177,6 +178,7 @@ export default function PropiedadesPage() {
 
   const handleSave = async () => {
     setSaving(true)
+    setSaveError('')
     try {
       const body = {
         ...form,
@@ -195,6 +197,9 @@ export default function PropiedadesPage() {
         if (res.ok) {
           const updated = await res.json()
           setProperties(properties.map((p) => (p.id === editProp.id ? updated : p)))
+          setModalOpen(false)
+        } else {
+          setSaveError('Error al guardar. Intentá de nuevo.')
         }
       } else {
         const res = await fetch('/api/properties', {
@@ -205,11 +210,13 @@ export default function PropiedadesPage() {
         if (res.ok) {
           const created = await res.json()
           setProperties([created, ...properties])
+          setModalOpen(false)
+        } else {
+          setSaveError('Error al guardar. Intentá de nuevo.')
         }
       }
-      setModalOpen(false)
     } catch {
-      // silently fail for demo
+      setSaveError('Error de conexión. Intentá de nuevo.')
     } finally {
       setSaving(false)
     }
@@ -556,6 +563,9 @@ export default function PropiedadesPage() {
               { value: 'INACTIVA', label: 'Inactiva' },
             ]}
           />
+          {saveError && (
+            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{saveError}</p>
+          )}
           <div className="flex justify-end gap-3 pt-2">
             <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancelar</Button>
             <Button onClick={handleSave} loading={saving}>

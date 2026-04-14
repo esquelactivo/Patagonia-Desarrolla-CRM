@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import prisma from '@/lib/prisma'
 
 export async function GET() {
@@ -19,19 +20,17 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const activity = await prisma.activity.create({
-      data: {
-        title: body.title,
-        type: body.type || 'LLAMADA',
-        date: body.date ? new Date(body.date) : new Date(),
-        done: body.done || false,
-        notes: body.notes || null,
-        contactId: body.contactId || null,
-        propertyId: body.propertyId || null,
-        dealId: body.dealId || null,
-        userId: 'demo-user-1',
-      },
-    })
+    const data: Prisma.ActivityUncheckedCreateInput = {
+      title: body.title,
+      type: body.type || 'LLAMADA',
+      date: body.date ? new Date(body.date) : new Date(),
+      done: body.done || false,
+      notes: body.notes || null,
+      contactId: body.contactId || null,
+      propertyId: body.propertyId || null,
+      dealId: body.dealId || null,
+    }
+    const activity = await prisma.activity.create({ data })
     return NextResponse.json(activity, { status: 201 })
   } catch {
     return NextResponse.json({ error: 'Database unavailable' }, { status: 503 })

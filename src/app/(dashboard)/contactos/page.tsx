@@ -89,7 +89,7 @@ export default function ContactosPage() {
       const res = await fetch('/api/contacts')
       if (res.ok) {
         const data = await res.json()
-        setContacts(data.length > 0 ? data : mockContacts)
+        setContacts(data)
       } else {
         setContacts(mockContacts)
       }

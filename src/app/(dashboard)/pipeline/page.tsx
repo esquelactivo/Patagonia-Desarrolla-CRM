@@ -96,7 +96,7 @@ export default function PipelinePage() {
       const res = await fetch('/api/deals')
       if (res.ok) {
         const data = await res.json()
-        setDeals(data.length > 0 ? data : mockDeals)
+        setDeals(data)
       } else {
         setDeals(mockDeals)
       }

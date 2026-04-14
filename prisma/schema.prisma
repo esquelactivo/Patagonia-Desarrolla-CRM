@@ -35,8 +35,8 @@ model Property {
   area         Float?
   images       String[]
   features     String[]
-  userId       String
-  user         User        @relation(fields: [userId], references: [id])
+  userId       String?
+  user         User?       @relation(fields: [userId], references: [id])
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
   inquiries    Inquiry[]
@@ -104,8 +104,8 @@ model Activity {
   property   Property? @relation(fields: [propertyId], references: [id])
   dealId     String?
   deal       Deal?     @relation(fields: [dealId], references: [id])
-  userId     String
-  user       User      @relation(fields: [userId], references: [id])
+  userId     String?
+  user       User?     @relation(fields: [userId], references: [id])
   createdAt  DateTime  @default(now())
 }
 

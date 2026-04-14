@@ -105,7 +105,7 @@ export default function CampaniasPage() {
       const res = await fetch('/api/campaigns')
       if (res.ok) {
         const data = await res.json()
-        setCampaigns(data.length > 0 ? data : mockCampaigns)
+        setCampaigns(data)
       } else {
         setCampaigns(mockCampaigns)
       }

@@ -125,7 +125,7 @@ export default function CalendarioPage() {
       const res = await fetch('/api/activities')
       if (res.ok) {
         const data = await res.json()
-        setActivities(data.length > 0 ? data : mockActivities)
+        setActivities(data)
       } else {
         setActivities(mockActivities)
       }

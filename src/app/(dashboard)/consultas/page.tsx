@@ -92,7 +92,7 @@ export default function ConsultasPage() {
       const res = await fetch('/api/inquiries')
       if (res.ok) {
         const data = await res.json()
-        setInquiries(data.length > 0 ? data : mockInquiries)
+        setInquiries(data)
       } else {
         setInquiries(mockInquiries)
       }
