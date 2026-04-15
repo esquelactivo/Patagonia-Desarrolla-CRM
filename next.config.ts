@@ -7,6 +7,14 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'patagoniadesarrolla.com',
+      },
+    ],
+  },
 }
 
 export default nextConfig
