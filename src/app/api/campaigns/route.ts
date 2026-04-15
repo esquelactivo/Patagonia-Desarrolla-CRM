@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
+import { getUserFromRequest } from '@/lib/getUser'
 
 export async function GET() {
   try {
+    const user = await getUserFromRequest()
+    const where = user && user.role === 'AGENT' ? { userId: user.id } : {}
+
     const campaigns = await prisma.campaign.findMany({
+      where,
       orderBy: { createdAt: 'desc' },
       include: {
         recipients: true,
@@ -17,6 +22,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const user = await getUserFromRequest()
     const body = await request.json()
     const campaign = await prisma.campaign.create({
       data: {
@@ -26,6 +32,7 @@ export async function POST(request: Request) {
         content: body.content || null,
         status: body.status || 'BORRADOR',
         sentAt: body.sentAt ? new Date(body.sentAt) : null,
+        userId: user?.id || null,
       },
     })
     return NextResponse.json(campaign, { status: 201 })

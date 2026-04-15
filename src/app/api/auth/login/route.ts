@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
-import { signToken, checkDemoCredentials, DEMO_USER } from '@/lib/auth'
+import { signToken } from '@/lib/auth'
+import prisma from '@/lib/prisma'
+import bcrypt from 'bcryptjs'
 
 export async function POST(request: Request) {
   try {
@@ -9,56 +11,44 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Email y contraseña requeridos' }, { status: 400 })
     }
 
-    // Try demo credentials first
-    if (checkDemoCredentials(email, password)) {
-      const token = signToken({
-        id: DEMO_USER.id,
-        email: DEMO_USER.email,
-        name: DEMO_USER.name,
-        role: DEMO_USER.role,
+    // Auto-seed admin if no users exist
+    const userCount = await prisma.user.count()
+    if (userCount === 0) {
+      const hashed = await bcrypt.hash('admin123', 10)
+      await prisma.user.create({
+        data: {
+          email: 'admin@inmobiliaria.com',
+          name: 'Admin',
+          password: hashed,
+          role: 'ADMIN',
+        },
       })
-
-      const response = NextResponse.json({ success: true, user: { id: DEMO_USER.id, email: DEMO_USER.email, name: DEMO_USER.name } })
-      response.cookies.set('session', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 7, // 7 days
-        path: '/',
-      })
-
-      return response
     }
 
-    // Try DB user
-    try {
-      const { default: prisma } = await import('@/lib/prisma')
-      const bcrypt = await import('bcryptjs')
-
-      const user = await prisma.user.findUnique({ where: { email } })
-      if (!user) {
-        return NextResponse.json({ error: 'Credenciales incorrectas' }, { status: 401 })
-      }
-
-      const valid = await bcrypt.compare(password, user.password)
-      if (!valid) {
-        return NextResponse.json({ error: 'Credenciales incorrectas' }, { status: 401 })
-      }
-
-      const token = signToken({ id: user.id, email: user.email, name: user.name, role: user.role })
-      const response = NextResponse.json({ success: true, user: { id: user.id, email: user.email, name: user.name } })
-      response.cookies.set('session', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 7,
-        path: '/',
-      })
-
-      return response
-    } catch {
+    const user = await prisma.user.findUnique({ where: { email } })
+    if (!user) {
       return NextResponse.json({ error: 'Credenciales incorrectas' }, { status: 401 })
     }
+
+    const valid = await bcrypt.compare(password, user.password)
+    if (!valid) {
+      return NextResponse.json({ error: 'Credenciales incorrectas' }, { status: 401 })
+    }
+
+    const token = signToken({ id: user.id, email: user.email, name: user.name, role: user.role })
+    const response = NextResponse.json({
+      success: true,
+      user: { id: user.id, email: user.email, name: user.name, role: user.role },
+    })
+    response.cookies.set('session', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+      path: '/',
+    })
+
+    return response
   } catch {
     return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })
   }

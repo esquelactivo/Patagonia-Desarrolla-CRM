@@ -1,13 +1,21 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
+import { getUserFromRequest } from '@/lib/getUser'
 
 export async function GET() {
   try {
+    const user = await getUserFromRequest()
+    const where = user && user.role === 'AGENT' ? { assignedTo: user.id } : {}
+
     const inquiries = await prisma.inquiry.findMany({
+      where,
       orderBy: { createdAt: 'desc' },
       include: {
         property: true,
         contact: true,
+        assignedUser: {
+          select: { id: true, name: true, email: true },
+        },
       },
     })
     return NextResponse.json(inquiries)
@@ -29,6 +37,7 @@ export async function POST(request: Request) {
         propertyId: body.propertyId || null,
         contactId: body.contactId || null,
         status: body.status || 'NUEVA',
+        assignedTo: body.assignedTo || null,
       },
     })
     return NextResponse.json(inquiry, { status: 201 })
@@ -44,11 +53,13 @@ export async function PATCH(request: Request) {
     if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 })
 
     const body = await request.json()
+    const updateData: Record<string, unknown> = {}
+    if (body.status !== undefined) updateData.status = body.status
+    if (body.assignedTo !== undefined) updateData.assignedTo = body.assignedTo || null
+
     const inquiry = await prisma.inquiry.update({
       where: { id },
-      data: {
-        status: body.status,
-      },
+      data: updateData,
     })
     return NextResponse.json(inquiry)
   } catch {

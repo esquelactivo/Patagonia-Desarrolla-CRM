@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
+import { getUserFromRequest } from '@/lib/getUser'
 
 export async function GET() {
   try {
+    const user = await getUserFromRequest()
+    const where = user && user.role === 'AGENT' ? { userId: user.id } : {}
+
     const contacts = await prisma.contact.findMany({
+      where,
       orderBy: { createdAt: 'desc' },
     })
     return NextResponse.json(contacts)
@@ -14,6 +19,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const user = await getUserFromRequest()
     const body = await request.json()
     const contact = await prisma.contact.create({
       data: {
@@ -22,6 +28,7 @@ export async function POST(request: Request) {
         phone: body.phone || null,
         type: body.type || 'COMPRADOR',
         notes: body.notes || null,
+        userId: user?.id || null,
       },
     })
     return NextResponse.json(contact, { status: 201 })

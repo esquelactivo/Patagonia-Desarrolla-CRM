@@ -1,10 +1,15 @@
 import { NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import prisma from '@/lib/prisma'
+import { getUserFromRequest } from '@/lib/getUser'
 
 export async function GET() {
   try {
+    const user = await getUserFromRequest()
+    const where = user && user.role === 'AGENT' ? { userId: user.id } : {}
+
     const activities = await prisma.activity.findMany({
+      where,
       orderBy: { date: 'asc' },
       include: {
         contact: true,
@@ -19,6 +24,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const user = await getUserFromRequest()
     const body = await request.json()
     const data: Prisma.ActivityUncheckedCreateInput = {
       title: body.title,
@@ -29,6 +35,7 @@ export async function POST(request: Request) {
       contactId: body.contactId || null,
       propertyId: body.propertyId || null,
       dealId: body.dealId || null,
+      userId: user?.id || null,
     }
     const activity = await prisma.activity.create({ data })
     return NextResponse.json(activity, { status: 201 })

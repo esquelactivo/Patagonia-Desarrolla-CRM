@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
+import { getUserFromRequest } from '@/lib/getUser'
 
 export async function GET() {
   try {
+    const user = await getUserFromRequest()
+    const where = user && user.role === 'AGENT' ? { userId: user.id } : {}
+
     const deals = await prisma.deal.findMany({
+      where,
       orderBy: { createdAt: 'desc' },
       include: {
         contact: true,
@@ -18,6 +23,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const user = await getUserFromRequest()
     const body = await request.json()
     const deal = await prisma.deal.create({
       data: {
@@ -28,6 +34,7 @@ export async function POST(request: Request) {
         status: body.status || 'ACTIVA',
         value: body.value ? parseFloat(body.value) : null,
         notes: body.notes || null,
+        userId: user?.id || null,
       },
       include: {
         contact: true,

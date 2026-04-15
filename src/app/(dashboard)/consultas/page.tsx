@@ -5,9 +5,15 @@ import Papa from 'papaparse'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
-import { Select } from '@/components/ui/Select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table'
 import type { Inquiry } from '@/types'
+
+interface Agent {
+  id: string
+  name: string
+  email: string
+  role: string
+}
 
 const mockInquiries: Inquiry[] = [
   {
@@ -64,27 +70,52 @@ const mockInquiries: Inquiry[] = [
   },
 ]
 
-const statusVariant: Record<string, 'default' | 'success' | 'warning' | 'danger' | 'info'> = {
-  NUEVA: 'info',
-  CONTACTADA: 'warning',
-  CALIFICADA: 'success',
-  DESCARTADA: 'danger',
+const getTokenPayload = () => {
+  try {
+    const cookies = document.cookie.split(';')
+    const session = cookies.find((c) => c.trim().startsWith('session='))
+    if (!session) return null
+    const token = session.split('=')[1]
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    return payload
+  } catch {
+    return null
+  }
 }
 
 const statusTabs = ['Todas', 'NUEVA', 'CONTACTADA', 'CALIFICADA', 'DESCARTADA']
 
 export default function ConsultasPage() {
-  const [inquiries, setInquiries] = useState<Inquiry[]>([])
+  const [inquiries, setInquiries] = useState<(Inquiry & { assignedTo?: string | null; assignedUser?: Agent | null })[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('Todas')
   const [csvModalOpen, setCsvModalOpen] = useState(false)
   const [csvPreview, setCsvPreview] = useState<Inquiry[]>([])
   const [csvImporting, setCsvImporting] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [agents, setAgents] = useState<Agent[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
+    const payload = getTokenPayload()
+    if (payload?.role === 'ADMIN') {
+      setIsAdmin(true)
+      fetchAgents()
+    }
     fetchInquiries()
   }, [])
+
+  const fetchAgents = async () => {
+    try {
+      const res = await fetch('/api/users')
+      if (res.ok) {
+        const data = await res.json()
+        setAgents(data)
+      }
+    } catch {
+      // silently fail
+    }
+  }
 
   const fetchInquiries = async () => {
     setLoading(true)
@@ -121,6 +152,26 @@ export default function ConsultasPage() {
       }
     } catch {
       setInquiries(inquiries.map((i) => (i.id === id ? { ...i, status } : i)))
+    }
+  }
+
+  const handleAssignChange = async (id: string, assignedTo: string) => {
+    try {
+      const res = await fetch(`/api/inquiries?id=${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assignedTo: assignedTo || null }),
+      })
+      if (res.ok) {
+        const agent = agents.find((a) => a.id === assignedTo) || null
+        setInquiries(
+          inquiries.map((i) =>
+            i.id === id ? { ...i, assignedTo: assignedTo || null, assignedUser: agent } : i
+          )
+        )
+      }
+    } catch {
+      // silently fail
     }
   }
 
@@ -281,6 +332,7 @@ export default function ConsultasPage() {
                 <TableHead>Formulario / Aviso</TableHead>
                 <TableHead>Origen</TableHead>
                 <TableHead>Estado</TableHead>
+                {isAdmin && <TableHead>Asignar a</TableHead>}
                 <TableHead>Fecha</TableHead>
                 <TableHead>Acciones</TableHead>
               </TableRow>
@@ -307,6 +359,22 @@ export default function ConsultasPage() {
                       <option value="DESCARTADA">DESCARTADA</option>
                     </select>
                   </TableCell>
+                  {isAdmin && (
+                    <TableCell>
+                      <select
+                        value={inquiry.assignedTo || ''}
+                        onChange={(e) => handleAssignChange(inquiry.id, e.target.value)}
+                        className="text-xs border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white min-w-28"
+                      >
+                        <option value="">Sin asignar</option>
+                        {agents.map((agent) => (
+                          <option key={agent.id} value={agent.id}>
+                            {agent.name}
+                          </option>
+                        ))}
+                      </select>
+                    </TableCell>
+                  )}
                   <TableCell className="text-gray-500">{formatDate(inquiry.createdAt)}</TableCell>
                   <TableCell>
                     {inquiry.status === 'CALIFICADA' && (
@@ -319,7 +387,7 @@ export default function ConsultasPage() {
               ))}
               {filtered.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center text-gray-400 py-8">No hay consultas en este estado</TableCell>
+                  <TableCell colSpan={isAdmin ? 9 : 8} className="text-center text-gray-400 py-8">No hay consultas en este estado</TableCell>
                 </TableRow>
               )}
             </TableBody>

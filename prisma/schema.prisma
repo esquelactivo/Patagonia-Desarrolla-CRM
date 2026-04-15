@@ -16,6 +16,10 @@ model User {
   createdAt  DateTime   @default(now())
   properties Property[]
   activities Activity[]
+  contacts   Contact[]
+  inquiries  Inquiry[]
+  deals      Deal[]
+  campaigns  Campaign[]
 }
 
 model Property {
@@ -51,6 +55,8 @@ model Contact {
   phone      String?
   type       String              @default("COMPRADOR")
   notes      String?
+  userId     String?
+  user       User?               @relation(fields: [userId], references: [id])
   createdAt  DateTime            @default(now())
   updatedAt  DateTime            @updatedAt
   inquiries  Inquiry[]
@@ -71,6 +77,8 @@ model Inquiry {
   contactId  String?
   contact    Contact?  @relation(fields: [contactId], references: [id])
   status     String    @default("NUEVA")
+  assignedTo String?
+  assignedUser User?   @relation(fields: [assignedTo], references: [id])
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 }
@@ -86,6 +94,8 @@ model Deal {
   status     String     @default("ACTIVA")
   value      Float?
   notes      String?
+  userId     String?
+  user       User?      @relation(fields: [userId], references: [id])
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
   activities Activity[]
@@ -117,6 +127,8 @@ model Campaign {
   content    String?
   status     String              @default("BORRADOR")
   sentAt     DateTime?
+  userId     String?
+  user       User?               @relation(fields: [userId], references: [id])
   createdAt  DateTime            @default(now())
   updatedAt  DateTime            @updatedAt
   recipients CampaignRecipient[]
