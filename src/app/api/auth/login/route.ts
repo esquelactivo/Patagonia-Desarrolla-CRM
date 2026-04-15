@@ -40,11 +40,27 @@ export async function POST(request: Request) {
       success: true,
       user: { id: user.id, email: user.email, name: user.name, role: user.role },
     })
+    // JWT httpOnly - no accesible por JS (seguro)
     response.cookies.set('session', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+      maxAge: 60 * 60 * 24 * 7,
+      path: '/',
+    })
+    // Cookie de rol legible por JS para el sidebar (no contiene datos sensibles)
+    response.cookies.set('user_role', user.role, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7,
+      path: '/',
+    })
+    response.cookies.set('user_name', user.name, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7,
       path: '/',
     })
 

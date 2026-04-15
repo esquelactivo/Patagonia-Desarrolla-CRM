@@ -70,14 +70,10 @@ const mockInquiries: Inquiry[] = [
   },
 ]
 
-const getTokenPayload = () => {
+const getCookieValue = (name: string): string | null => {
   try {
-    const cookies = document.cookie.split(';')
-    const session = cookies.find((c) => c.trim().startsWith('session='))
-    if (!session) return null
-    const token = session.split('=')[1]
-    const payload = JSON.parse(atob(token.split('.')[1]))
-    return payload
+    const match = document.cookie.split(';').find((c) => c.trim().startsWith(name + '='))
+    return match ? decodeURIComponent(match.trim().split('=')[1]) : null
   } catch {
     return null
   }
@@ -97,8 +93,8 @@ export default function ConsultasPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    const payload = getTokenPayload()
-    if (payload?.role === 'ADMIN') {
+    const role = getCookieValue('user_role')
+    if (role === 'ADMIN') {
       setIsAdmin(true)
       fetchAgents()
     }
