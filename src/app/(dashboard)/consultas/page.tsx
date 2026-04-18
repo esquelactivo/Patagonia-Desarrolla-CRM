@@ -200,16 +200,20 @@ export default function ConsultasPage() {
   const getTemplateKey = (formName: string) => `wa_template_${formName}`
 
   const loadTemplate = (formName: string | null | undefined, name: string): string => {
-    if (formName) {
-      const saved = localStorage.getItem(getTemplateKey(formName))
-      if (saved) return saved.replace(/\{nombre\}/g, name)
-    }
+    try {
+      if (formName && typeof window !== 'undefined') {
+        const saved = localStorage.getItem(getTemplateKey(formName))
+        if (saved) return saved.replace(/\{nombre\}/g, name)
+      }
+    } catch { /* ignore */ }
     return `Hola ${name}, te contactamos desde Patagonia Desarrolla. ¿En qué podemos ayudarte?`
   }
 
   const saveTemplate = (formName: string, message: string, name: string) => {
-    const template = message.replace(new RegExp(name, 'g'), '{nombre}')
-    localStorage.setItem(getTemplateKey(formName), template)
+    try {
+      const template = message.replace(new RegExp(name, 'g'), '{nombre}')
+      localStorage.setItem(getTemplateKey(formName), template)
+    } catch { /* ignore */ }
   }
 
   const openDetail = (inquiry: Inquiry & { assignedTo?: string | null; assignedUser?: Agent | null }) => {
