@@ -7,8 +7,7 @@ export function middleware(request: NextRequest) {
   // Allow public routes
   if (
     pathname === '/login' ||
-    pathname.startsWith('/api/auth') ||
-    pathname.startsWith('/api/webhooks') ||
+    pathname.startsWith('/api/') ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon')
   ) {
