@@ -90,6 +90,7 @@ export default function ConsultasPage() {
   const [csvImporting, setCsvImporting] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const [agents, setAgents] = useState<Agent[]>([])
+  const [selectedInquiry, setSelectedInquiry] = useState<(Inquiry & { assignedTo?: string | null; assignedUser?: Agent | null }) | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -337,107 +338,205 @@ export default function ConsultasPage() {
         ))}
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        {loading ? (
-          <div className="text-center py-12 text-gray-400">Cargando...</div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nombre</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Teléfono</TableHead>
-                <TableHead>Formulario / Aviso</TableHead>
-                <TableHead>Origen</TableHead>
-                <TableHead>Estado</TableHead>
-                {isAdmin && <TableHead>Asignar a</TableHead>}
-                <TableHead>Fecha</TableHead>
-                <TableHead>Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((inquiry) => (
-                <TableRow key={inquiry.id}>
-                  <TableCell className="font-medium">{inquiry.name}</TableCell>
-                  <TableCell className="text-gray-500">{inquiry.email || '-'}</TableCell>
-                  <TableCell className="text-gray-500">{inquiry.phone || '-'}</TableCell>
-                  <TableCell className="text-gray-500 max-w-48">
-                    <span className="block truncate">{inquiry.message || '-'}</span>
-                  </TableCell>
-                  <TableCell className="text-gray-500">{inquiry.source || '-'}</TableCell>
-                  <TableCell>
-                    <select
-                      value={inquiry.status}
-                      onChange={(e) => handleStatusChange(inquiry.id, e.target.value)}
-                      className="text-xs border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
-                    >
-                      <option value="NUEVA">NUEVA</option>
-                      <option value="CONTACTADA">CONTACTADA</option>
-                      <option value="CALIFICADA">CALIFICADA</option>
-                      <option value="DESCARTADA">DESCARTADA</option>
-                    </select>
-                  </TableCell>
-                  {isAdmin && (
+      {/* Cards (mobile) / Table (desktop) */}
+      {loading ? (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm text-center py-12 text-gray-400">Cargando...</div>
+      ) : filtered.length === 0 ? (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm text-center py-12 text-gray-400">No hay consultas en este estado</div>
+      ) : (
+        <>
+          {/* Mobile cards */}
+          <div className="flex flex-col gap-3 md:hidden">
+            {filtered.map((inquiry) => (
+              <div
+                key={inquiry.id}
+                className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 space-y-3"
+                onClick={() => setSelectedInquiry(inquiry)}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-semibold text-gray-900">{inquiry.name}</p>
+                    <p className="text-xs text-gray-500">{inquiry.source || '-'} · {formatDate(inquiry.createdAt)}</p>
+                  </div>
+                  <select
+                    value={inquiry.status}
+                    onChange={(e) => { e.stopPropagation(); handleStatusChange(inquiry.id, e.target.value) }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white focus:outline-none"
+                  >
+                    <option value="NUEVA">NUEVA</option>
+                    <option value="CONTACTADA">CONTACTADA</option>
+                    <option value="CALIFICADA">CALIFICADA</option>
+                    <option value="DESCARTADA">DESCARTADA</option>
+                  </select>
+                </div>
+                {inquiry.phone && <p className="text-sm text-gray-600">{inquiry.phone}</p>}
+                {inquiry.message && (
+                  <p className="text-sm text-gray-500 line-clamp-2">{inquiry.message}</p>
+                )}
+                <div className="flex items-center gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
+                  {inquiry.phone && (
+                    <a href={buildWhatsAppUrl(inquiry.phone, inquiry.name)} target="_blank" rel="noopener noreferrer"
+                      className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-green-50 text-green-600 text-sm font-medium">
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                        <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.126 1.534 5.856L.057 23.885a.5.5 0 00.606.61l6.198-1.625A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.9a9.87 9.87 0 01-5.031-1.374l-.36-.214-3.733.979 1-3.638-.235-.374A9.861 9.861 0 012.1 12C2.1 6.533 6.533 2.1 12 2.1S21.9 6.533 21.9 12 17.467 21.9 12 21.9z"/>
+                      </svg>
+                      WhatsApp
+                    </a>
+                  )}
+                  <button onClick={() => handleDelete(inquiry.id)}
+                    className="p-2 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead>Teléfono</TableHead>
+                  <TableHead>Origen</TableHead>
+                  <TableHead>Estado</TableHead>
+                  {isAdmin && <TableHead>Asignar a</TableHead>}
+                  <TableHead>Fecha</TableHead>
+                  <TableHead>Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.map((inquiry) => (
+                  <TableRow key={inquiry.id} className="cursor-pointer hover:bg-gray-50" onClick={() => setSelectedInquiry(inquiry)}>
                     <TableCell>
+                      <div>
+                        <p className="font-medium text-gray-900">{inquiry.name}</p>
+                        <p className="text-xs text-gray-400">{inquiry.email || ''}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-gray-500">{inquiry.phone || '-'}</TableCell>
+                    <TableCell className="text-gray-500">{inquiry.source || '-'}</TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <select
-                        value={inquiry.assignedTo || ''}
-                        onChange={(e) => handleAssignChange(inquiry.id, e.target.value)}
-                        className="text-xs border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white min-w-28"
+                        value={inquiry.status}
+                        onChange={(e) => handleStatusChange(inquiry.id, e.target.value)}
+                        className="text-xs border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
                       >
-                        <option value="">Sin asignar</option>
-                        {agents.map((agent) => (
-                          <option key={agent.id} value={agent.id}>
-                            {agent.name}
-                          </option>
-                        ))}
+                        <option value="NUEVA">NUEVA</option>
+                        <option value="CONTACTADA">CONTACTADA</option>
+                        <option value="CALIFICADA">CALIFICADA</option>
+                        <option value="DESCARTADA">DESCARTADA</option>
                       </select>
                     </TableCell>
-                  )}
-                  <TableCell className="text-gray-500">{formatDate(inquiry.createdAt)}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1.5">
-                      {inquiry.phone && (
-                        <a
-                          href={buildWhatsAppUrl(inquiry.phone, inquiry.name)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          title="Contactar por WhatsApp"
-                          className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-green-50 hover:bg-green-100 text-green-600 transition-colors"
+                    {isAdmin && (
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <select
+                          value={inquiry.assignedTo || ''}
+                          onChange={(e) => handleAssignChange(inquiry.id, e.target.value)}
+                          className="text-xs border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white min-w-28"
                         >
-                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
-                            <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.126 1.534 5.856L.057 23.885a.5.5 0 00.606.61l6.198-1.625A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.9a9.87 9.87 0 01-5.031-1.374l-.36-.214-3.733.979 1-3.638-.235-.374A9.861 9.861 0 012.1 12C2.1 6.533 6.533 2.1 12 2.1S21.9 6.533 21.9 12 17.467 21.9 12 21.9z"/>
+                          <option value="">Sin asignar</option>
+                          {agents.map((agent) => (
+                            <option key={agent.id} value={agent.id}>{agent.name}</option>
+                          ))}
+                        </select>
+                      </TableCell>
+                    )}
+                    <TableCell className="text-gray-500">{formatDate(inquiry.createdAt)}</TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center gap-1.5">
+                        {inquiry.phone && (
+                          <a href={buildWhatsAppUrl(inquiry.phone, inquiry.name)} target="_blank" rel="noopener noreferrer"
+                            title="Contactar por WhatsApp"
+                            className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-green-50 hover:bg-green-100 text-green-600 transition-colors">
+                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                              <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.126 1.534 5.856L.057 23.885a.5.5 0 00.606.61l6.198-1.625A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.9a9.87 9.87 0 01-5.031-1.374l-.36-.214-3.733.979 1-3.638-.235-.374A9.861 9.861 0 012.1 12C2.1 6.533 6.533 2.1 12 2.1S21.9 6.533 21.9 12 17.467 21.9 12 21.9z"/>
+                            </svg>
+                          </a>
+                        )}
+                        {inquiry.status === 'CALIFICADA' && (
+                          <Button size="sm" onClick={() => handlePassToPipeline(inquiry)}>Pipeline</Button>
+                        )}
+                        <button onClick={() => handleDelete(inquiry.id)} title="Eliminar"
+                          className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                           </svg>
-                        </a>
-                      )}
-                      {inquiry.status === 'CALIFICADA' && (
-                        <Button size="sm" onClick={() => handlePassToPipeline(inquiry)}>
-                          Pipeline
-                        </Button>
-                      )}
-                      <button
-                        onClick={() => handleDelete(inquiry.id)}
-                        title="Eliminar consulta"
-                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {filtered.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={isAdmin ? 9 : 8} className="text-center text-gray-400 py-8">No hay consultas en este estado</TableCell>
-                </TableRow>
+                        </button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </>
+      )}
+
+      {/* Detail Modal */}
+      <Modal open={!!selectedInquiry} onClose={() => setSelectedInquiry(null)} title="Detalle del lead">
+        {selectedInquiry && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-lg font-bold flex-shrink-0">
+                {selectedInquiry.name.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <p className="font-semibold text-gray-900 text-lg">{selectedInquiry.name}</p>
+                <p className="text-sm text-gray-500">{formatDate(selectedInquiry.createdAt)}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3">
+              {selectedInquiry.email && (
+                <div className="bg-gray-50 rounded-lg px-4 py-3">
+                  <p className="text-xs text-gray-400 mb-0.5">Email</p>
+                  <p className="text-sm text-gray-800">{selectedInquiry.email}</p>
+                </div>
               )}
-            </TableBody>
-          </Table>
+              {selectedInquiry.phone && (
+                <div className="bg-gray-50 rounded-lg px-4 py-3">
+                  <p className="text-xs text-gray-400 mb-0.5">Teléfono</p>
+                  <p className="text-sm text-gray-800">{selectedInquiry.phone}</p>
+                </div>
+              )}
+              {selectedInquiry.source && (
+                <div className="bg-gray-50 rounded-lg px-4 py-3">
+                  <p className="text-xs text-gray-400 mb-0.5">Origen</p>
+                  <p className="text-sm text-gray-800">{selectedInquiry.source}</p>
+                </div>
+              )}
+              {selectedInquiry.message && (
+                <div className="bg-blue-50 rounded-lg px-4 py-3">
+                  <p className="text-xs text-blue-400 mb-1">Respuestas del formulario</p>
+                  <p className="text-sm text-gray-800 whitespace-pre-wrap">{selectedInquiry.message}</p>
+                </div>
+              )}
+            </div>
+
+            {selectedInquiry.phone && (
+              <a
+                href={buildWhatsAppUrl(selectedInquiry.phone, selectedInquiry.name)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-green-500 hover:bg-green-600 text-white font-medium transition-colors"
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                  <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.126 1.534 5.856L.057 23.885a.5.5 0 00.606.61l6.198-1.625A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.9a9.87 9.87 0 01-5.031-1.374l-.36-.214-3.733.979 1-3.638-.235-.374A9.861 9.861 0 012.1 12C2.1 6.533 6.533 2.1 12 2.1S21.9 6.533 21.9 12 17.467 21.9 12 21.9z"/>
+                </svg>
+                Contactar por WhatsApp
+              </a>
+            )}
+          </div>
         )}
-      </div>
+      </Modal>
 
       {/* CSV Preview Modal */}
       <Modal
