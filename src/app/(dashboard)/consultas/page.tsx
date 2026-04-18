@@ -217,7 +217,7 @@ export default function ConsultasPage() {
   }
 
   const openDetail = (inquiry: Inquiry & { assignedTo?: string | null; assignedUser?: Agent | null }) => {
-    openDetail(inquiry)
+    setSelectedInquiry(inquiry)
     setWaMessage(loadTemplate(inquiry.adName, inquiry.name))
   }
 
