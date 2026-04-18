@@ -105,7 +105,7 @@ export default function ConsultasPage() {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('Todas')
   const [csvModalOpen, setCsvModalOpen] = useState(false)
-  const [csvPreview, setCsvPreview] = useState<Inquiry[]>([])
+  const [csvPreview, setCsvPreview] = useState<(Inquiry & { channel?: string | null; adName?: string | null })[]>([])
   const [csvImporting, setCsvImporting] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const [agents, setAgents] = useState<Agent[]>([])
@@ -291,20 +291,21 @@ export default function ConsultasPage() {
       encoding: 'UTF-8',
       complete: (results) => {
         const rows = results.data as Record<string, string>[]
-        const parsed: Inquiry[] = rows.map((row, i) => {
+        const parsed = rows.map((row, i) => {
           const origen = getCol(row, 'Origen', 'origen', 'source') || ''
           const canal = getCol(row, 'Canal', 'canal', 'channel') || ''
-          const source = origen || canal
-            ? `Meta Ads${origen ? ' · ' + origen : ''}${canal ? ' · ' + canal : ''}`
-            : 'CSV Import'
+          const adName = getCol(row, 'Formulario', 'formulario', 'form', 'form_name') || null
           const dateRaw = getCol(row, 'Fecha de creación', 'fecha de creacion', 'fecha', 'date', 'created_at') || ''
           return {
             id: `csv-${i}-${Date.now()}`,
             name: getCol(row, 'Nombre', 'nombre completo', 'nombre', 'name', 'full name') || `Contacto ${i + 1}`,
             email: getCol(row, 'Correo electrónico', 'correo electronico', 'email', 'correo', 'e-mail') || null,
-            phone: getCol(row, 'Teléfono', 'telefono', 'phone', 'número de teléfono', 'numero de telefono', 'cel', 'celular') || null,
-            message: getCol(row, 'Formulario', 'formulario', 'mensaje', 'message', 'form') || null,
-            source,
+            phone: getCol(row, 'Teléfono', 'telefono', 'phone', 'número de teléfono', 'numero de telefono', 'cel', 'celular')
+              || getCol(row, 'Número de WhatsApp', 'numero de whatsapp', 'whatsapp') || null,
+            message: null,
+            source: origen || 'CSV Import',
+            channel: canal || null,
+            adName,
             propertyId: null,
             contactId: null,
             status: 'NUEVA',
@@ -326,7 +327,16 @@ export default function ConsultasPage() {
         await fetch('/api/inquiries', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(inquiry),
+          body: JSON.stringify({
+            name: inquiry.name,
+            email: inquiry.email,
+            phone: inquiry.phone,
+            message: inquiry.message,
+            source: inquiry.source,
+            channel: inquiry.channel,
+            adName: inquiry.adName,
+            status: inquiry.status,
+          }),
         })
       }
       setInquiries([...csvPreview, ...inquiries])
