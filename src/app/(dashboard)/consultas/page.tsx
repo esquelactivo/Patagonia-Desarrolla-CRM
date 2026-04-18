@@ -91,6 +91,7 @@ export default function ConsultasPage() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [agents, setAgents] = useState<Agent[]>([])
   const [selectedInquiry, setSelectedInquiry] = useState<(Inquiry & { assignedTo?: string | null; assignedUser?: Agent | null }) | null>(null)
+  const [waMessage, setWaMessage] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -186,17 +187,34 @@ export default function ConsultasPage() {
     setInquiries(inquiries.filter((i) => i.id !== id))
   }
 
-  const buildWhatsAppUrl = (phone: string, name: string): string => {
+  const buildWhatsAppUrl = (phone: string, message: string): string => {
     const cleaned = phone.replace(/[\s\-().]/g, '')
     const number = cleaned.startsWith('+')
       ? cleaned.slice(1)
       : cleaned.startsWith('0')
       ? '54' + cleaned.slice(1)
       : '54' + cleaned
-    const message = encodeURIComponent(
-      `Hola ${name}, te contactamos desde Patagonia Desarrolla. ¿En qué podemos ayudarte?`
-    )
-    return `https://wa.me/${number}?text=${message}`
+    return `https://wa.me/${number}?text=${encodeURIComponent(message)}`
+  }
+
+  const getTemplateKey = (formName: string) => `wa_template_${formName}`
+
+  const loadTemplate = (formName: string | null | undefined, name: string): string => {
+    if (formName) {
+      const saved = localStorage.getItem(getTemplateKey(formName))
+      if (saved) return saved.replace(/\{nombre\}/g, name)
+    }
+    return `Hola ${name}, te contactamos desde Patagonia Desarrolla. ¿En qué podemos ayudarte?`
+  }
+
+  const saveTemplate = (formName: string, message: string, name: string) => {
+    const template = message.replace(new RegExp(name, 'g'), '{nombre}')
+    localStorage.setItem(getTemplateKey(formName), template)
+  }
+
+  const openDetail = (inquiry: Inquiry & { assignedTo?: string | null; assignedUser?: Agent | null }) => {
+    openDetail(inquiry)
+    setWaMessage(loadTemplate(inquiry.adName, inquiry.name))
   }
 
   // Busca un campo en la fila ignorando BOM, espacios, mayúsculas y acentos
@@ -351,7 +369,7 @@ export default function ConsultasPage() {
               <div
                 key={inquiry.id}
                 className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 space-y-3"
-                onClick={() => setSelectedInquiry(inquiry)}
+                onClick={() => openDetail(inquiry)}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>
@@ -370,13 +388,14 @@ export default function ConsultasPage() {
                     <option value="DESCARTADA">DESCARTADA</option>
                   </select>
                 </div>
+                {inquiry.adName && <p className="text-xs font-medium text-blue-600 bg-blue-50 rounded px-2 py-0.5 w-fit">{inquiry.adName}</p>}
                 {inquiry.phone && <p className="text-sm text-gray-600">{inquiry.phone}</p>}
                 {inquiry.message && (
                   <p className="text-sm text-gray-500 line-clamp-2">{inquiry.message}</p>
                 )}
                 <div className="flex items-center gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
                   {inquiry.phone && (
-                    <a href={buildWhatsAppUrl(inquiry.phone, inquiry.name)} target="_blank" rel="noopener noreferrer"
+                    <a href={buildWhatsAppUrl(inquiry.phone, loadTemplate(inquiry.adName, inquiry.name))} target="_blank" rel="noopener noreferrer"
                       className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-green-50 text-green-600 text-sm font-medium">
                       <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
@@ -402,6 +421,7 @@ export default function ConsultasPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Nombre</TableHead>
+                  <TableHead>Formulario</TableHead>
                   <TableHead>Teléfono</TableHead>
                   <TableHead>Origen</TableHead>
                   <TableHead>Estado</TableHead>
@@ -412,12 +432,17 @@ export default function ConsultasPage() {
               </TableHeader>
               <TableBody>
                 {filtered.map((inquiry) => (
-                  <TableRow key={inquiry.id} className="cursor-pointer hover:bg-gray-50" onClick={() => setSelectedInquiry(inquiry)}>
+                  <TableRow key={inquiry.id} className="cursor-pointer hover:bg-gray-50" onClick={() => openDetail(inquiry)}>
                     <TableCell>
                       <div>
                         <p className="font-medium text-gray-900">{inquiry.name}</p>
                         <p className="text-xs text-gray-400">{inquiry.email || ''}</p>
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      {inquiry.adName
+                        ? <span className="text-xs font-medium text-blue-600 bg-blue-50 rounded px-2 py-0.5">{inquiry.adName}</span>
+                        : <span className="text-gray-400">-</span>}
                     </TableCell>
                     <TableCell className="text-gray-500">{inquiry.phone || '-'}</TableCell>
                     <TableCell className="text-gray-500">{inquiry.source || '-'}</TableCell>
@@ -451,7 +476,7 @@ export default function ConsultasPage() {
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center gap-1.5">
                         {inquiry.phone && (
-                          <a href={buildWhatsAppUrl(inquiry.phone, inquiry.name)} target="_blank" rel="noopener noreferrer"
+                          <a href={buildWhatsAppUrl(inquiry.phone, loadTemplate(inquiry.adName, inquiry.name))} target="_blank" rel="noopener noreferrer"
                             title="Contactar por WhatsApp"
                             className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-green-50 hover:bg-green-100 text-green-600 transition-colors">
                             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
@@ -494,6 +519,12 @@ export default function ConsultasPage() {
             </div>
 
             <div className="grid grid-cols-1 gap-3">
+              {selectedInquiry.adName && (
+                <div className="bg-blue-50 rounded-lg px-4 py-3">
+                  <p className="text-xs text-blue-400 mb-0.5">Formulario / Anuncio</p>
+                  <p className="text-sm font-medium text-blue-700">{selectedInquiry.adName}</p>
+                </div>
+              )}
               {selectedInquiry.email && (
                 <div className="bg-gray-50 rounded-lg px-4 py-3">
                   <p className="text-xs text-gray-400 mb-0.5">Email</p>
@@ -513,26 +544,48 @@ export default function ConsultasPage() {
                 </div>
               )}
               {selectedInquiry.message && (
-                <div className="bg-blue-50 rounded-lg px-4 py-3">
-                  <p className="text-xs text-blue-400 mb-1">Respuestas del formulario</p>
+                <div className="bg-gray-50 rounded-lg px-4 py-3">
+                  <p className="text-xs text-gray-400 mb-1">Respuestas del formulario</p>
                   <p className="text-sm text-gray-800 whitespace-pre-wrap">{selectedInquiry.message}</p>
                 </div>
               )}
             </div>
 
             {selectedInquiry.phone && (
-              <a
-                href={buildWhatsAppUrl(selectedInquiry.phone, selectedInquiry.name)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-green-500 hover:bg-green-600 text-white font-medium transition-colors"
-              >
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
-                  <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.126 1.534 5.856L.057 23.885a.5.5 0 00.606.61l6.198-1.625A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.9a9.87 9.87 0 01-5.031-1.374l-.36-.214-3.733.979 1-3.638-.235-.374A9.861 9.861 0 012.1 12C2.1 6.533 6.533 2.1 12 2.1S21.9 6.533 21.9 12 17.467 21.9 12 21.9z"/>
-                </svg>
-                Contactar por WhatsApp
-              </a>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-gray-700">Mensaje de WhatsApp</p>
+                  {selectedInquiry.adName && (
+                    <button
+                      onClick={() => {
+                        saveTemplate(selectedInquiry.adName!, waMessage, selectedInquiry.name)
+                        alert(`Plantilla guardada para "${selectedInquiry.adName}"`)
+                      }}
+                      className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                    >
+                      Guardar como plantilla
+                    </button>
+                  )}
+                </div>
+                <textarea
+                  value={waMessage}
+                  onChange={(e) => setWaMessage(e.target.value)}
+                  rows={4}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-400 resize-none"
+                />
+                <a
+                  href={buildWhatsAppUrl(selectedInquiry.phone, waMessage)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-green-500 hover:bg-green-600 text-white font-medium transition-colors"
+                >
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                    <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.126 1.534 5.856L.057 23.885a.5.5 0 00.606.61l6.198-1.625A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.9a9.87 9.87 0 01-5.031-1.374l-.36-.214-3.733.979 1-3.638-.235-.374A9.861 9.861 0 012.1 12C2.1 6.533 6.533 2.1 12 2.1S21.9 6.533 21.9 12 17.467 21.9 12 21.9z"/>
+                  </svg>
+                  Enviar por WhatsApp
+                </a>
+              </div>
             )}
           </div>
         )}
