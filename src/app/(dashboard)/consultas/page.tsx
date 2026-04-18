@@ -175,6 +175,29 @@ export default function ConsultasPage() {
     alert(`Consulta de ${inquiry.name} pasada al pipeline (funcionalidad conectada con DB)`)
   }
 
+  const handleDelete = async (id: string) => {
+    if (!confirm('¿Eliminar esta consulta?')) return
+    try {
+      await fetch(`/api/inquiries?id=${id}`, { method: 'DELETE' })
+    } catch {
+      // continue regardless
+    }
+    setInquiries(inquiries.filter((i) => i.id !== id))
+  }
+
+  const buildWhatsAppUrl = (phone: string, name: string): string => {
+    const cleaned = phone.replace(/[\s\-().]/g, '')
+    const number = cleaned.startsWith('+')
+      ? cleaned.slice(1)
+      : cleaned.startsWith('0')
+      ? '54' + cleaned.slice(1)
+      : '54' + cleaned
+    const message = encodeURIComponent(
+      `Hola ${name}, te contactamos desde Patagonia Desarrolla. ¿En qué podemos ayudarte?`
+    )
+    return `https://wa.me/${number}?text=${message}`
+  }
+
   // Busca un campo en la fila ignorando BOM, espacios, mayúsculas y acentos
   const getCol = (row: Record<string, string>, ...candidates: string[]): string | null => {
     const normalize = (s: string) =>
@@ -373,11 +396,36 @@ export default function ConsultasPage() {
                   )}
                   <TableCell className="text-gray-500">{formatDate(inquiry.createdAt)}</TableCell>
                   <TableCell>
-                    {inquiry.status === 'CALIFICADA' && (
-                      <Button size="sm" onClick={() => handlePassToPipeline(inquiry)}>
-                        Pipeline
-                      </Button>
-                    )}
+                    <div className="flex items-center gap-1.5">
+                      {inquiry.phone && (
+                        <a
+                          href={buildWhatsAppUrl(inquiry.phone, inquiry.name)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Contactar por WhatsApp"
+                          className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-green-50 hover:bg-green-100 text-green-600 transition-colors"
+                        >
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                            <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.126 1.534 5.856L.057 23.885a.5.5 0 00.606.61l6.198-1.625A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.9a9.87 9.87 0 01-5.031-1.374l-.36-.214-3.733.979 1-3.638-.235-.374A9.861 9.861 0 012.1 12C2.1 6.533 6.533 2.1 12 2.1S21.9 6.533 21.9 12 17.467 21.9 12 21.9z"/>
+                          </svg>
+                        </a>
+                      )}
+                      {inquiry.status === 'CALIFICADA' && (
+                        <Button size="sm" onClick={() => handlePassToPipeline(inquiry)}>
+                          Pipeline
+                        </Button>
+                      )}
+                      <button
+                        onClick={() => handleDelete(inquiry.id)}
+                        title="Eliminar consulta"
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

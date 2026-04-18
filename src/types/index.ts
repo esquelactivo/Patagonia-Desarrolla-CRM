@@ -54,6 +54,9 @@ export interface Inquiry {
   phone?: string | null
   message?: string | null
   source?: string | null
+  channel?: string | null
+  adName?: string | null
+  formId?: string | null
   propertyId?: string | null
   contactId?: string | null
   status: string
