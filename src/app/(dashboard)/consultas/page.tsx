@@ -396,12 +396,12 @@ export default function ConsultasPage() {
       </div>
 
       {/* Status Tabs */}
-      <div className="bg-white rounded-xl border border-gray-200 p-1 flex gap-1">
+      <div className="bg-white rounded-xl border border-gray-200 p-1 flex gap-1 overflow-x-auto scrollbar-hide">
         {statusTabs.map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+            className={`shrink-0 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
               activeTab === tab ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'
             }`}
           >
