@@ -566,12 +566,12 @@ export default function ConsultasPage() {
             </div>
 
             <div className="grid grid-cols-1 gap-3">
-              {selectedInquiry.adName && (
-                <div className="bg-blue-50 rounded-lg px-4 py-3">
-                  <p className="text-xs text-blue-400 mb-0.5">Formulario / Anuncio</p>
-                  <p className="text-sm font-medium text-blue-700">{selectedInquiry.adName}</p>
-                </div>
-              )}
+              <div className={`rounded-lg px-4 py-3 ${selectedInquiry.adName ? 'bg-blue-50' : 'bg-gray-50'}`}>
+                <p className={`text-xs mb-0.5 ${selectedInquiry.adName ? 'text-blue-400' : 'text-gray-400'}`}>Formulario / Anuncio</p>
+                <p className={`text-sm font-medium ${selectedInquiry.adName ? 'text-blue-700' : 'text-gray-400'}`}>
+                  {selectedInquiry.adName || 'Sin formulario asociado'}
+                </p>
+              </div>
               {selectedInquiry.email && (
                 <div className="bg-gray-50 rounded-lg px-4 py-3">
                   <p className="text-xs text-gray-400 mb-0.5">Email</p>
