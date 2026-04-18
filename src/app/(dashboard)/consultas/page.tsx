@@ -79,6 +79,25 @@ const getCookieValue = (name: string): string | null => {
   }
 }
 
+interface WaTemplate {
+  id: string
+  name: string
+  message: string
+}
+
+const TEMPLATES_KEY = 'wa_templates'
+
+const loadTemplates = (): WaTemplate[] => {
+  try {
+    if (typeof window === 'undefined') return []
+    return JSON.parse(localStorage.getItem(TEMPLATES_KEY) || '[]')
+  } catch { return [] }
+}
+
+const saveTemplates = (templates: WaTemplate[]) => {
+  try { localStorage.setItem(TEMPLATES_KEY, JSON.stringify(templates)) } catch { /* ignore */ }
+}
+
 const statusTabs = ['Todas', 'NUEVA', 'CONTACTADA', 'CALIFICADA', 'DESCARTADA']
 
 export default function ConsultasPage() {
@@ -92,7 +111,15 @@ export default function ConsultasPage() {
   const [agents, setAgents] = useState<Agent[]>([])
   const [selectedInquiry, setSelectedInquiry] = useState<(Inquiry & { assignedTo?: string | null; assignedUser?: Agent | null }) | null>(null)
   const [waMessage, setWaMessage] = useState('')
+  const [templates, setTemplates] = useState<WaTemplate[]>([])
+  const [templatesModalOpen, setTemplatesModalOpen] = useState(false)
+  const [editingTemplate, setEditingTemplate] = useState<WaTemplate | null>(null)
+  const [templateForm, setTemplateForm] = useState({ name: '', message: '' })
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    setTemplates(loadTemplates())
+  }, [])
 
   useEffect(() => {
     const role = getCookieValue('user_role')
@@ -197,28 +224,35 @@ export default function ConsultasPage() {
     return `https://wa.me/${number}?text=${encodeURIComponent(message)}`
   }
 
-  const getTemplateKey = (formName: string) => `wa_template_${formName}`
+  const applyTemplate = (template: WaTemplate, name: string) =>
+    template.message.replace(/\{nombre\}/g, name)
 
-  const loadTemplate = (formName: string | null | undefined, name: string): string => {
-    try {
-      if (formName && typeof window !== 'undefined') {
-        const saved = localStorage.getItem(getTemplateKey(formName))
-        if (saved) return saved.replace(/\{nombre\}/g, name)
-      }
-    } catch { /* ignore */ }
-    return `Hola ${name}, te contactamos desde Patagonia Desarrolla. ¿En qué podemos ayudarte?`
-  }
-
-  const saveTemplate = (formName: string, message: string, name: string) => {
-    try {
-      const template = message.replace(new RegExp(name, 'g'), '{nombre}')
-      localStorage.setItem(getTemplateKey(formName), template)
-    } catch { /* ignore */ }
-  }
+  const defaultMessage = (name: string) =>
+    `Hola ${name}, te contactamos desde Patagonia Desarrolla. ¿En qué podemos ayudarte?`
 
   const openDetail = (inquiry: Inquiry & { assignedTo?: string | null; assignedUser?: Agent | null }) => {
     setSelectedInquiry(inquiry)
-    setWaMessage(loadTemplate(inquiry.adName, inquiry.name))
+    setWaMessage(defaultMessage(inquiry.name))
+  }
+
+  const handleSaveTemplate = () => {
+    if (!templateForm.name || !templateForm.message) return
+    let updated: WaTemplate[]
+    if (editingTemplate) {
+      updated = templates.map(t => t.id === editingTemplate.id ? { ...t, ...templateForm } : t)
+    } else {
+      updated = [...templates, { id: Date.now().toString(), ...templateForm }]
+    }
+    saveTemplates(updated)
+    setTemplates(updated)
+    setTemplateForm({ name: '', message: '' })
+    setEditingTemplate(null)
+  }
+
+  const handleDeleteTemplate = (id: string) => {
+    const updated = templates.filter(t => t.id !== id)
+    saveTemplates(updated)
+    setTemplates(updated)
   }
 
   // Busca un campo en la fila ignorando BOM, espacios, mayúsculas y acentos
@@ -332,6 +366,15 @@ export default function ConsultasPage() {
           />
           <Button
             variant="secondary"
+            onClick={() => { setEditingTemplate(null); setTemplateForm({ name: '', message: '' }); setTemplatesModalOpen(true) }}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+            </svg>
+            Plantillas WA
+          </Button>
+          <Button
+            variant="secondary"
             onClick={() => fileInputRef.current?.click()}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -399,7 +442,7 @@ export default function ConsultasPage() {
                 )}
                 <div className="flex items-center gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
                   {inquiry.phone && (
-                    <a href={buildWhatsAppUrl(inquiry.phone, loadTemplate(inquiry.adName, inquiry.name))} target="_blank" rel="noopener noreferrer"
+                    <a href={buildWhatsAppUrl(inquiry.phone, defaultMessage(inquiry.name))} target="_blank" rel="noopener noreferrer"
                       className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-green-50 text-green-600 text-sm font-medium">
                       <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
@@ -480,7 +523,7 @@ export default function ConsultasPage() {
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center gap-1.5">
                         {inquiry.phone && (
-                          <a href={buildWhatsAppUrl(inquiry.phone, loadTemplate(inquiry.adName, inquiry.name))} target="_blank" rel="noopener noreferrer"
+                          <a href={buildWhatsAppUrl(inquiry.phone, defaultMessage(inquiry.name))} target="_blank" rel="noopener noreferrer"
                             title="Contactar por WhatsApp"
                             className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-green-50 hover:bg-green-100 text-green-600 transition-colors">
                             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
@@ -556,27 +599,38 @@ export default function ConsultasPage() {
             </div>
 
             {selectedInquiry.phone && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium text-gray-700">Mensaje de WhatsApp</p>
-                  {selectedInquiry.adName && (
-                    <button
-                      onClick={() => {
-                        saveTemplate(selectedInquiry.adName!, waMessage, selectedInquiry.name)
-                        alert(`Plantilla guardada para "${selectedInquiry.adName}"`)
+              <div className="space-y-3">
+                <p className="text-sm font-medium text-gray-700">Mensaje de WhatsApp</p>
+
+                {templates.length > 0 && (
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">Usar plantilla</label>
+                    <select
+                      defaultValue=""
+                      onChange={(e) => {
+                        const t = templates.find(t => t.id === e.target.value)
+                        if (t) setWaMessage(applyTemplate(t, selectedInquiry.name))
                       }}
-                      className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
                     >
-                      Guardar como plantilla
-                    </button>
-                  )}
+                      <option value="">Seleccionar plantilla...</option>
+                      {templates.map(t => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">O escribí el mensaje</label>
+                  <textarea
+                    value={waMessage}
+                    onChange={(e) => setWaMessage(e.target.value)}
+                    rows={4}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-400 resize-none"
+                  />
                 </div>
-                <textarea
-                  value={waMessage}
-                  onChange={(e) => setWaMessage(e.target.value)}
-                  rows={4}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-400 resize-none"
-                />
+
                 <a
                   href={buildWhatsAppUrl(selectedInquiry.phone, waMessage)}
                   target="_blank"
@@ -593,6 +647,67 @@ export default function ConsultasPage() {
             )}
           </div>
         )}
+      </Modal>
+
+      {/* Templates Modal */}
+      <Modal
+        open={templatesModalOpen}
+        onClose={() => setTemplatesModalOpen(false)}
+        title="Plantillas de WhatsApp"
+        size="lg"
+      >
+        <div className="space-y-4">
+          <p className="text-xs text-gray-500">Usá <strong>{'{nombre}'}</strong> en el mensaje y se reemplazará con el nombre del lead.</p>
+
+          {/* Existing templates */}
+          {templates.length > 0 && (
+            <div className="space-y-2">
+              {templates.map(t => (
+                <div key={t.id} className="border border-gray-200 rounded-lg p-3 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900">{t.name}</p>
+                    <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{t.message}</p>
+                  </div>
+                  <div className="flex gap-1 flex-shrink-0">
+                    <button onClick={() => { setEditingTemplate(t); setTemplateForm({ name: t.name, message: t.message }) }}
+                      className="text-xs text-blue-600 hover:text-blue-700 px-2 py-1 rounded">Editar</button>
+                    <button onClick={() => handleDeleteTemplate(t.id)}
+                      className="text-xs text-red-500 hover:text-red-600 px-2 py-1 rounded">Eliminar</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Form */}
+          <div className="border-t border-gray-100 pt-4 space-y-3">
+            <p className="text-sm font-medium text-gray-700">{editingTemplate ? 'Editar plantilla' : 'Nueva plantilla'}</p>
+            <input
+              type="text"
+              placeholder="Nombre de la plantilla (ej: Casa en Palermo)"
+              value={templateForm.name}
+              onChange={e => setTemplateForm({ ...templateForm, name: e.target.value })}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+            <textarea
+              placeholder={`Hola {nombre}, te contactamos por la casa en Palermo...`}
+              value={templateForm.message}
+              onChange={e => setTemplateForm({ ...templateForm, message: e.target.value })}
+              rows={4}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+            />
+            <div className="flex gap-2 justify-end">
+              {editingTemplate && (
+                <Button variant="secondary" onClick={() => { setEditingTemplate(null); setTemplateForm({ name: '', message: '' }) }}>
+                  Cancelar
+                </Button>
+              )}
+              <Button onClick={handleSaveTemplate}>
+                {editingTemplate ? 'Guardar cambios' : 'Crear plantilla'}
+              </Button>
+            </div>
+          </div>
+        </div>
       </Modal>
 
       {/* CSV Preview Modal */}
