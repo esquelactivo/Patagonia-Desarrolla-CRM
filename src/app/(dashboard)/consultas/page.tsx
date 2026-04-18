@@ -110,6 +110,7 @@ export default function ConsultasPage() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [agents, setAgents] = useState<Agent[]>([])
   const [selectedInquiry, setSelectedInquiry] = useState<(Inquiry & { assignedTo?: string | null; assignedUser?: Agent | null }) | null>(null)
+  const [pipelineSuccess, setPipelineSuccess] = useState<string | null>(null)
   const [waMessage, setWaMessage] = useState('')
   const [templates, setTemplates] = useState<WaTemplate[]>([])
   const [templatesModalOpen, setTemplatesModalOpen] = useState(false)
@@ -200,8 +201,45 @@ export default function ConsultasPage() {
     }
   }
 
-  const handlePassToPipeline = (inquiry: Inquiry) => {
-    alert(`Consulta de ${inquiry.name} pasada al pipeline (funcionalidad conectada con DB)`)
+  const handlePassToPipeline = async (inquiry: Inquiry & { assignedTo?: string | null }) => {
+    try {
+      // Crear contacto a partir del lead
+      const contactRes = await fetch('/api/contacts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: inquiry.name, email: inquiry.email, phone: inquiry.phone, type: 'COMPRADOR' }),
+      })
+      if (!contactRes.ok) throw new Error('No se pudo crear el contacto')
+      const contact = await contactRes.json()
+
+      // Crear deal en el pipeline
+      const dealTitle = inquiry.adName ? `${inquiry.name} — ${inquiry.adName}` : `Consulta de ${inquiry.name}`
+      const dealRes = await fetch('/api/deals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: dealTitle,
+          contactId: contact.id,
+          propertyId: inquiry.propertyId || null,
+          stage: 'VISITA',
+          notes: inquiry.message || null,
+        }),
+      })
+      if (!dealRes.ok) throw new Error('No se pudo crear el deal')
+
+      // Vincular contacto a la consulta y marcarla como calificada
+      await fetch(`/api/inquiries?id=${inquiry.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'CALIFICADA' }),
+      })
+      setInquiries(inquiries.map(i => i.id === inquiry.id ? { ...i, status: 'CALIFICADA' } : i))
+      setSelectedInquiry(null)
+      setPipelineSuccess(`${inquiry.name} fue pasado al pipeline correctamente.`)
+      setTimeout(() => setPipelineSuccess(null), 4000)
+    } catch {
+      alert('No se pudo pasar al pipeline. Intentá de nuevo.')
+    }
   }
 
   const handleDelete = async (id: string) => {
@@ -360,6 +398,11 @@ export default function ConsultasPage() {
 
   return (
     <div className="space-y-4">
+      {pipelineSuccess && (
+        <div className="bg-green-50 border border-green-200 text-green-800 text-sm rounded-xl px-4 py-3">
+          ✓ {pipelineSuccess}
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
