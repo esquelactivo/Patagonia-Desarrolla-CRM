@@ -41,6 +41,7 @@ export async function POST(request: Request) {
         contactId: body.contactId || null,
         status: body.status || 'NUEVA',
         assignedTo: body.assignedTo || null,
+        ...(body.createdAt ? { createdAt: new Date(body.createdAt) } : {}),
       },
     })
     return NextResponse.json(inquiry, { status: 201 })

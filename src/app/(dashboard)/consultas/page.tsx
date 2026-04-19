@@ -388,7 +388,9 @@ export default function ConsultasPage() {
   }
 
   const formatDate = (date: Date | string) => {
-    return new Date(date).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    const d = new Date(date)
+    return d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }) +
+      ' ' + d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
   }
 
   const counts = statusTabs.reduce((acc, tab) => {
