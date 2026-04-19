@@ -53,9 +53,9 @@ export async function POST(request: Request) {
     }
 
     const rawMessage = body.message || ''
-    // Normalizar separador: Make usa " | " para evitar saltos de línea en JSON
-    const normalizedMessage = rawMessage.includes(' | ')
-      ? rawMessage.split(' | ').join('\n')
+    // Normalizar separador pipe (Make usa | o  | para evitar saltos de línea en JSON)
+    const normalizedMessage = rawMessage.includes('|')
+      ? rawMessage.split(/\s*\|\s*/).join('\n')
       : rawMessage
     const isFromMake = normalizedMessage.includes(':') && !body.name
 
