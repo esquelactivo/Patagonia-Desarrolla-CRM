@@ -89,7 +89,12 @@ const adminNavItem = {
   ),
 }
 
-export function Sidebar() {
+interface SidebarProps {
+  mobileOpen?: boolean
+  onClose?: () => void
+}
+
+export function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const [collapsed, setCollapsed] = useState(false)
@@ -100,6 +105,9 @@ export function Sidebar() {
     if (role === 'ADMIN') setIsAdmin(true)
   }, [])
 
+  // Cerrar al navegar en mobile
+  useEffect(() => { onClose?.() }, [pathname])
+
   const navItems = isAdmin ? [...baseNavItems, adminNavItem] : baseNavItems
 
   const handleLogout = async () => {
@@ -109,7 +117,13 @@ export function Sidebar() {
 
   return (
     <div
-      className={`flex flex-col h-full bg-slate-800 text-white transition-all duration-300 ${collapsed ? 'w-16' : 'w-64'}`}
+      className={`
+        flex flex-col h-full bg-slate-800 text-white transition-all duration-300
+        fixed inset-y-0 left-0 z-30
+        ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
+        md:relative md:translate-x-0
+        ${collapsed ? 'w-16' : 'w-64'}
+      `}
     >
       {/* Logo */}
       <div className="flex items-center justify-between px-4 py-5 border-b border-slate-700">
