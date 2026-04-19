@@ -60,6 +60,21 @@ export async function POST(request: Request) {
     const phone = body.phone || extractField(rawMessage, ['phone', 'phone_number', 'telefono', 'teléfono'])
     const message = isFromMake ? buildCustomMessage(rawMessage) : rawMessage || null
 
+    // Si adName es un ID numérico, buscar el nombre real del formulario en Facebook
+    let adName = body.adName || null
+    const isNumericId = adName && /^\d+$/.test(adName)
+    if (isNumericId && process.env.META_PAGE_ACCESS_TOKEN) {
+      try {
+        const res = await fetch(
+          `https://graph.facebook.com/v19.0/${adName}?fields=name&access_token=${process.env.META_PAGE_ACCESS_TOKEN}`
+        )
+        if (res.ok) {
+          const data = await res.json()
+          if (data.name) adName = data.name
+        }
+      } catch { /* mantener el ID si falla */ }
+    }
+
     const inquiry = await prisma.inquiry.create({
       data: {
         name,
@@ -68,7 +83,7 @@ export async function POST(request: Request) {
         message: message || null,
         source: body.source || null,
         channel: body.channel || null,
-        adName: body.adName || null,
+        adName: adName,
         formId: body.formId || null,
         propertyId: body.propertyId || null,
         contactId: body.contactId || null,
