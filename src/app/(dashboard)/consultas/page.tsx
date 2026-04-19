@@ -104,6 +104,8 @@ export default function ConsultasPage() {
   const [inquiries, setInquiries] = useState<(Inquiry & { assignedTo?: string | null; assignedUser?: Agent | null })[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('Todas')
+  const [filterFormulario, setFilterFormulario] = useState('Todos')
+  const [sortDateDir, setSortDateDir] = useState<'desc' | 'asc'>('desc')
   const [csvModalOpen, setCsvModalOpen] = useState(false)
   const [csvPreview, setCsvPreview] = useState<(Inquiry & { channel?: string | null; adName?: string | null })[]>([])
   const [csvImporting, setCsvImporting] = useState(false)
@@ -160,9 +162,16 @@ export default function ConsultasPage() {
     }
   }
 
-  const filtered = inquiries.filter((i) =>
-    activeTab === 'Todas' || i.status === activeTab
-  )
+  // Opciones únicas de formulario
+  const formularioOptions = ['Todos', ...Array.from(new Set(inquiries.map(i => i.adName).filter(Boolean))) as string[]]
+
+  const filtered = inquiries
+    .filter(i => activeTab === 'Todas' || i.status === activeTab)
+    .filter(i => filterFormulario === 'Todos' || i.adName === filterFormulario)
+    .sort((a, b) => {
+      const diff = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      return sortDateDir === 'desc' ? -diff : diff
+    })
 
   const handleStatusChange = async (id: string, status: string) => {
     try {
@@ -239,6 +248,22 @@ export default function ConsultasPage() {
       setTimeout(() => setPipelineSuccess(null), 4000)
     } catch {
       alert('No se pudo pasar al pipeline. Intentá de nuevo.')
+    }
+  }
+
+  const handleAddToContacts = async (inquiry: Inquiry) => {
+    try {
+      const res = await fetch('/api/contacts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: inquiry.name, email: inquiry.email, phone: inquiry.phone, type: 'COMPRADOR' }),
+      })
+      if (!res.ok) throw new Error()
+      setSelectedInquiry(null)
+      setPipelineSuccess(`${inquiry.name} fue agregado a Contactos.`)
+      setTimeout(() => setPipelineSuccess(null), 4000)
+    } catch {
+      alert('No se pudo agregar a contactos. Intentá de nuevo.')
     }
   }
 
@@ -475,6 +500,20 @@ export default function ConsultasPage() {
         </div>
       </div>
 
+      {/* Filtro Formulario */}
+      <div className="flex items-center gap-2">
+        <label className="text-sm text-gray-500 whitespace-nowrap">Formulario:</label>
+        <select
+          value={filterFormulario}
+          onChange={e => setFilterFormulario(e.target.value)}
+          className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          {formularioOptions.map(f => (
+            <option key={f} value={f}>{f}</option>
+          ))}
+        </select>
+      </div>
+
       {/* Status Tabs */}
       <div className="bg-white rounded-xl border border-gray-200 p-1 flex gap-1 overflow-x-auto scrollbar-hide">
         {statusTabs.map((tab) => (
@@ -563,7 +602,12 @@ export default function ConsultasPage() {
                   <TableHead>Origen</TableHead>
                   <TableHead>Estado</TableHead>
                   {isAdmin && <TableHead>Asignar a</TableHead>}
-                  <TableHead>Fecha</TableHead>
+                  <TableHead
+                    className="cursor-pointer select-none hover:text-gray-700"
+                    onClick={() => setSortDateDir(d => d === 'desc' ? 'asc' : 'desc')}
+                  >
+                    Fecha {sortDateDir === 'desc' ? '↓' : '↑'}
+                  </TableHead>
                   <TableHead>Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -708,6 +752,16 @@ export default function ConsultasPage() {
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Acciones */}
+            <div className="flex gap-2 flex-wrap">
+              <Button variant="secondary" onClick={() => handleAddToContacts(selectedInquiry)}>
+                + Agregar a Contactos
+              </Button>
+              <Button onClick={() => handlePassToPipeline(selectedInquiry)}>
+                → Pasar al Pipeline
+              </Button>
             </div>
 
             {selectedInquiry.phone && (
