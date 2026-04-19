@@ -323,27 +323,59 @@ export default function ConsultasPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
+    // Columnas que NO son preguntas personalizadas
+    const SYSTEM_COLS = new Set([
+      'id', 'created_time', 'ad_id', 'ad_name', 'adset_id', 'adset_name',
+      'campaign_id', 'campaign_name', 'form_id', 'form_name', 'is_organic',
+      'platform', 'email', 'full_name', 'phone_number', 'phone', 'city',
+      'province', 'lead_status',
+      'fecha de creación', 'fecha de creacion', 'nombre', 'correo electrónico',
+      'correo electronico', 'origen', 'formulario', 'canal', 'etapa',
+      'propietario', 'etiquetas', 'teléfono', 'telefono',
+      'número de teléfono secundario', 'numero de telefono secundario',
+      'número de whatsapp', 'numero de whatsapp',
+    ])
+
+    const normKey = (s: string) =>
+      s.replace(/\uFEFF/g, '').trim().toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+
+    const stripPrefix = (v: string) => v.replace(/^[a-z]:/, '').trim()
+
+    const platformLabel: Record<string, string> = { ig: 'Instagram', fb: 'Facebook' }
+
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
-      encoding: 'UTF-8',
+      delimiter: '',   // auto-detect (TSV o CSV)
       complete: (results) => {
         const rows = results.data as Record<string, string>[]
         const parsed = rows.map((row, i) => {
-          const origen = getCol(row, 'Origen', 'origen', 'source') || ''
-          const canal = getCol(row, 'Canal', 'canal', 'channel') || ''
-          const adName = getCol(row, 'Formulario', 'formulario', 'form', 'form_name') || null
-          const dateRaw = getCol(row, 'Fecha de creación', 'fecha de creacion', 'fecha', 'date', 'created_at') || ''
+          // Preguntas personalizadas: columnas que no son del sistema
+          const customLines = Object.entries(row)
+            .filter(([k, v]) => !SYSTEM_COLS.has(normKey(k)) && v?.trim())
+            .map(([k, v]) => `${k.replace(/_/g, ' ').trim()}: ${v.trim()}`)
+
+          const rawPhone =
+            getCol(row, 'phone_number', 'Teléfono', 'telefono', 'phone', 'Número de WhatsApp', 'numero de whatsapp', 'whatsapp') || ''
+          const platform = getCol(row, 'platform') || ''
+          const adName =
+            getCol(row, 'form_name', 'Formulario', 'formulario') || null
+          const dateRaw =
+            getCol(row, 'created_time', 'Fecha de creación', 'fecha de creacion', 'fecha', 'date') || ''
+          const origen = getCol(row, 'ad_name', 'Origen', 'origen') || ''
+
           return {
             id: `csv-${i}-${Date.now()}`,
-            name: getCol(row, 'Nombre', 'nombre completo', 'nombre', 'name', 'full name') || `Contacto ${i + 1}`,
-            email: getCol(row, 'Correo electrónico', 'correo electronico', 'email', 'correo', 'e-mail') || null,
-            phone: getCol(row, 'Teléfono', 'telefono', 'phone', 'número de teléfono', 'numero de telefono', 'cel', 'celular')
-              || getCol(row, 'Número de WhatsApp', 'numero de whatsapp', 'whatsapp') || null,
-            message: null,
+            name: getCol(row, 'full_name', 'Nombre', 'nombre completo', 'nombre', 'name') || `Contacto ${i + 1}`,
+            email: getCol(row, 'email', 'Correo electrónico', 'correo electronico', 'correo', 'e-mail') || null,
+            phone: rawPhone ? stripPrefix(rawPhone) : null,
+            message: customLines.length ? customLines.join('\n') : null,
             source: origen || 'CSV Import',
-            channel: canal || null,
+            channel: platformLabel[platform] || getCol(row, 'Canal', 'canal') || null,
             adName,
+            city: getCol(row, 'city', 'ciudad') || null,
+            province: getCol(row, 'province', 'provincia') || null,
             propertyId: null,
             contactId: null,
             status: 'NUEVA',
@@ -373,7 +405,10 @@ export default function ConsultasPage() {
             source: inquiry.source,
             channel: inquiry.channel,
             adName: inquiry.adName,
+            city: inquiry.city,
+            province: inquiry.province,
             status: inquiry.status,
+            createdAt: inquiry.createdAt,
           }),
         })
       }
@@ -415,7 +450,7 @@ export default function ConsultasPage() {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".csv"
+            accept=".csv,.tsv,.txt"
             onChange={handleFileSelect}
             className="hidden"
           />
