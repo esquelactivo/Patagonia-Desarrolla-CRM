@@ -4,6 +4,8 @@ import { Badge } from '@/components/ui/Badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table'
 import prisma from '@/lib/prisma'
 
+export const dynamic = 'force-dynamic'
+
 async function getDashboardData() {
   try {
     const [propiedades, contactos, consultasNuevas, dealsActivos, ultimasConsultas, dealsPorEtapa] =
