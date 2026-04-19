@@ -607,7 +607,7 @@ export default function ConsultasPage() {
       )}
 
       {/* Detail Modal */}
-      <Modal open={!!selectedInquiry} onClose={() => setSelectedInquiry(null)} title="Detalle del lead">
+      <Modal open={!!selectedInquiry} onClose={() => setSelectedInquiry(null)} title="Detalle del lead" size="2xl">
         {selectedInquiry && (
           <div className="space-y-4">
             <div className="flex items-center gap-3">
@@ -655,8 +655,22 @@ export default function ConsultasPage() {
               )}
               {selectedInquiry.message && (
                 <div className="bg-gray-50 rounded-lg px-4 py-3">
-                  <p className="text-xs text-gray-400 mb-1">Respuestas del formulario</p>
-                  <p className="text-sm text-gray-800 whitespace-pre-wrap">{selectedInquiry.message}</p>
+                  <p className="text-xs text-gray-400 mb-2">Respuestas del formulario</p>
+                  <div className="space-y-2">
+                    {selectedInquiry.message.split('\n').filter(Boolean).map((line, i) => {
+                      const colon = line.indexOf(':')
+                      if (colon === -1) return <p key={i} className="text-sm text-gray-800">{line}</p>
+                      const rawKey = line.slice(0, colon).trim()
+                      const val = line.slice(colon + 1).trim()
+                      const label = rawKey.replace(/_/g, ' ').replace(/^\d+\.\s*/, '').replace(/\?$/, '').trim()
+                      return (
+                        <div key={i}>
+                          <p className="text-xs text-gray-400 leading-tight">{label}?</p>
+                          <p className="text-sm font-medium text-gray-800 break-words">{val || '—'}</p>
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
               )}
             </div>
