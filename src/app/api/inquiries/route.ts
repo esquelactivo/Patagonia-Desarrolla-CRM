@@ -53,12 +53,16 @@ export async function POST(request: Request) {
     }
 
     const rawMessage = body.message || ''
-    const isFromMake = rawMessage.includes(':') && !body.name
+    // Normalizar separador: Make usa " | " para evitar saltos de línea en JSON
+    const normalizedMessage = rawMessage.includes(' | ')
+      ? rawMessage.split(' | ').join('\n')
+      : rawMessage
+    const isFromMake = normalizedMessage.includes(':') && !body.name
 
-    const name = body.name || extractField(rawMessage, ['full_name', 'nombre']) || 'Sin nombre'
-    const email = body.email || extractField(rawMessage, ['email', 'correo'])
-    const phone = body.phone || extractField(rawMessage, ['phone', 'phone_number', 'telefono', 'teléfono'])
-    const message = isFromMake ? buildCustomMessage(rawMessage) : rawMessage || null
+    const name = body.name || extractField(normalizedMessage, ['full_name', 'nombre']) || 'Sin nombre'
+    const email = body.email || extractField(normalizedMessage, ['email', 'correo'])
+    const phone = body.phone || extractField(normalizedMessage, ['phone', 'phone_number', 'telefono', 'teléfono'])
+    const message = isFromMake ? buildCustomMessage(normalizedMessage) : normalizedMessage || null
 
     // Si adName es un ID numérico, buscar el nombre real del formulario en Facebook
     let adName = body.adName || null
