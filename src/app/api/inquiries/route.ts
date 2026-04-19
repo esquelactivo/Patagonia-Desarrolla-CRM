@@ -30,7 +30,7 @@ export async function POST(request: Request) {
 
     // Cuando viene de Make, el message contiene todas las respuestas del formulario
     // como "nombre_campo: valor". Extraemos los campos estándar y dejamos solo las preguntas.
-    const STANDARD_KEYS = ['full_name', 'email', 'phone', 'phone_number', 'city', 'zip', 'postal_code']
+    const STANDARD_KEYS = ['full_name', 'email', 'phone', 'phone_number', 'city', 'zip', 'postal_code', 'province', 'provincia', 'state']
 
     const extractField = (text: string, keys: string[]): string | null => {
       for (const line of text.split('\n')) {
@@ -62,6 +62,8 @@ export async function POST(request: Request) {
     const name = body.name || extractField(normalizedMessage, ['full_name', 'nombre']) || 'Sin nombre'
     const email = body.email || extractField(normalizedMessage, ['email', 'correo'])
     const phone = body.phone || extractField(normalizedMessage, ['phone', 'phone_number', 'telefono', 'teléfono'])
+    const city = body.city || extractField(normalizedMessage, ['city', 'ciudad'])
+    const province = body.province || extractField(normalizedMessage, ['province', 'provincia', 'state'])
     const message = isFromMake ? buildCustomMessage(normalizedMessage) : normalizedMessage || null
 
     // Si adName es un ID numérico, buscar el nombre real del formulario en Facebook
@@ -89,6 +91,8 @@ export async function POST(request: Request) {
         channel: body.channel || null,
         adName: adName,
         formId: body.formId || null,
+        city: city || null,
+        province: province || null,
         propertyId: body.propertyId || null,
         contactId: body.contactId || null,
         status: body.status || 'NUEVA',

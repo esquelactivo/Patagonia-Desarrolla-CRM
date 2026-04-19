@@ -75,6 +75,8 @@ model Inquiry {
   channel      String?
   adName       String?
   formId       String?
+  city         String?
+  province     String?
   propertyId   String?
   property     Property? @relation(fields: [propertyId], references: [id])
   contactId    String?

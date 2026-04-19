@@ -645,6 +645,14 @@ export default function ConsultasPage() {
                   <p className="text-sm text-gray-800">{selectedInquiry.source}</p>
                 </div>
               )}
+              {(selectedInquiry.city || selectedInquiry.province) && (
+                <div className="bg-gray-50 rounded-lg px-4 py-3">
+                  <p className="text-xs text-gray-400 mb-0.5">Ubicación</p>
+                  <p className="text-sm text-gray-800">
+                    {[selectedInquiry.city, selectedInquiry.province].filter(Boolean).join(', ')}
+                  </p>
+                </div>
+              )}
               {selectedInquiry.message && (
                 <div className="bg-gray-50 rounded-lg px-4 py-3">
                   <p className="text-xs text-gray-400 mb-1">Respuestas del formulario</p>

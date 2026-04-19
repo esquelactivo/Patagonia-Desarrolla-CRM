@@ -57,6 +57,8 @@ export interface Inquiry {
   channel?: string | null
   adName?: string | null
   formId?: string | null
+  city?: string | null
+  province?: string | null
   propertyId?: string | null
   contactId?: string | null
   status: string
