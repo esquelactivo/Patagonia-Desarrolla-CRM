@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 interface HeaderProps {
   onMenuClick?: () => void
@@ -15,6 +16,10 @@ const pageTitles: Record<string, string> = {
   '/pipeline': 'Pipeline',
   '/campanias': 'Campañas',
   '/calendario': 'Calendario',
+  '/agenda': 'Agenda',
+  '/notificaciones': 'Notificaciones',
+  '/perfil': 'Mi Perfil',
+  '/usuarios': 'Usuarios',
 }
 
 interface NotifInquiry {
@@ -23,6 +28,14 @@ interface NotifInquiry {
   adName?: string | null
   source?: string | null
   createdAt: string
+}
+
+interface CurrentUser {
+  id: string
+  name: string
+  email: string
+  role: string
+  avatar?: string | null
 }
 
 const SEEN_KEY = 'notif_seen_ids'
@@ -42,11 +55,13 @@ export function Header({ onMenuClick }: HeaderProps) {
   const [open, setOpen] = useState(false)
   const [inquiries, setInquiries] = useState<NotifInquiry[]>([])
   const [seenIds, setSeenIds] = useState<string[]>([])
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setSeenIds(getSeenIds())
     fetchNew()
+    fetchCurrentUser()
     const interval = setInterval(fetchNew, 60000)
     return () => clearInterval(interval)
   }, [])
@@ -60,6 +75,16 @@ export function Header({ onMenuClick }: HeaderProps) {
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
+
+  const fetchCurrentUser = async () => {
+    try {
+      const res = await fetch('/api/auth/me')
+      if (res.ok) {
+        const data = await res.json()
+        setCurrentUser(data)
+      }
+    } catch {}
+  }
 
   const fetchNew = async () => {
     try {
@@ -95,21 +120,16 @@ export function Header({ onMenuClick }: HeaderProps) {
     return `hace ${Math.floor(h / 24)}d`
   }
 
+  const displayName = currentUser?.name || ''
+  const initial = displayName.charAt(0).toUpperCase() || 'A'
+
   return (
     <header className="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-4 md:px-6">
       <div className="flex items-center gap-3">
-        <button
-          onClick={onMenuClick}
-          className="md:hidden p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-        </button>
         <h1 className="text-xl font-semibold text-gray-900">{title}</h1>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 md:gap-4">
         {/* Search bar */}
         <div className="relative hidden md:block">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -168,13 +188,27 @@ export function Header({ onMenuClick }: HeaderProps) {
           )}
         </div>
 
-        {/* User avatar */}
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
-            A
+        {/* User avatar → perfil */}
+        <Link href="/perfil" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+          <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-blue-600 flex items-center justify-center">
+            {currentUser?.avatar ? (
+              <img src={currentUser.avatar} alt={displayName} className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-white text-sm font-semibold">{initial}</span>
+            )}
           </div>
-          <span className="text-sm font-medium text-gray-700 hidden md:block">Admin</span>
-        </div>
+          <span className="text-sm font-medium text-gray-700 hidden md:block">{displayName || 'Admin'}</span>
+        </Link>
+
+        {/* Hamburger — mobile only, right side */}
+        <button
+          onClick={onMenuClick}
+          className="md:hidden p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
       </div>
     </header>
   )

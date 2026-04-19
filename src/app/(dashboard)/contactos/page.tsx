@@ -10,54 +10,18 @@ import { Textarea } from '@/components/ui/Textarea'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table'
 import type { Contact } from '@/types'
 
-const mockContacts: Contact[] = [
-  {
-    id: '1',
-    name: 'María García',
-    email: 'maria.garcia@email.com',
-    phone: '+54 11 4567-8901',
-    type: 'COMPRADOR',
-    notes: 'Interesada en propiedades en Palermo',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '2',
-    name: 'Carlos Rodríguez',
-    email: 'carlos.r@email.com',
-    phone: '+54 11 2345-6789',
-    type: 'PROPIETARIO',
-    notes: 'Tiene 3 propiedades para vender',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '3',
-    name: 'Ana López',
-    email: 'ana.lopez@email.com',
-    phone: '+54 9 11 8765-4321',
-    type: 'INQUILINO',
-    notes: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '4',
-    name: 'Juan Martínez',
-    email: null,
-    phone: '+54 9 11 1111-2222',
-    type: 'VENDEDOR',
-    notes: 'Contactado por referido',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-]
-
 const typeVariant: Record<string, 'default' | 'success' | 'warning' | 'danger' | 'info'> = {
   COMPRADOR: 'info',
   VENDEDOR: 'success',
   INQUILINO: 'warning',
   PROPIETARIO: 'default',
+}
+
+const typeLabels: Record<string, string> = {
+  COMPRADOR: 'Comprador',
+  VENDEDOR: 'Vendedor',
+  INQUILINO: 'Inquilino',
+  PROPIETARIO: 'Propietario',
 }
 
 const emptyForm = {
@@ -74,6 +38,7 @@ export default function ContactosPage() {
   const [search, setSearch] = useState('')
   const [filterType, setFilterType] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
+  const [detailContact, setDetailContact] = useState<Contact | null>(null)
   const [editContact, setEditContact] = useState<Contact | null>(null)
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
@@ -90,12 +55,9 @@ export default function ContactosPage() {
       if (res.ok) {
         const data = await res.json()
         setContacts(data)
-      } else {
-        setContacts(mockContacts)
       }
-    } catch {
-      setContacts(mockContacts)
-    } finally {
+    } catch { /* ignore */ }
+    finally {
       setLoading(false)
     }
   }
@@ -116,6 +78,7 @@ export default function ContactosPage() {
   }
 
   const openEdit = (c: Contact) => {
+    setDetailContact(null)
     setEditContact(c)
     setForm({
       name: c.name,
@@ -125,6 +88,10 @@ export default function ContactosPage() {
       notes: c.notes || '',
     })
     setModalOpen(true)
+  }
+
+  const openDetail = (c: Contact) => {
+    setDetailContact(c)
   }
 
   const handleSave = async () => {
@@ -140,7 +107,6 @@ export default function ContactosPage() {
           const updated = await res.json()
           setContacts(contacts.map((c) => (c.id === editContact.id ? updated : c)))
         } else {
-          // Update locally for demo
           setContacts(contacts.map((c) => c.id === editContact.id ? { ...c, ...form, updatedAt: new Date().toISOString() } : c))
         }
       } else {
@@ -153,7 +119,6 @@ export default function ContactosPage() {
           const created = await res.json()
           setContacts([created, ...contacts])
         } else {
-          // Add locally for demo
           const newContact: Contact = {
             id: String(Date.now()),
             ...form,
@@ -180,6 +145,7 @@ export default function ContactosPage() {
     } catch { /* ignore */ }
     setContacts(contacts.filter((c) => c.id !== id))
     setDeleteId(null)
+    setDetailContact(null)
   }
 
   const formatDate = (date: Date | string) => {
@@ -187,7 +153,7 @@ export default function ContactosPage() {
   }
 
   const typeTabs = ['', 'COMPRADOR', 'VENDEDOR', 'INQUILINO', 'PROPIETARIO']
-  const typeLabels: Record<string, string> = {
+  const typeTabLabels: Record<string, string> = {
     '': 'Todos',
     COMPRADOR: 'Compradores',
     VENDEDOR: 'Vendedores',
@@ -213,37 +179,66 @@ export default function ContactosPage() {
 
       {/* Filters */}
       <div className="bg-white rounded-xl border border-gray-200 p-4">
-        <div className="flex flex-wrap gap-3 items-center">
-          <div className="flex-1 min-w-48">
-            <Input
-              placeholder="Buscar contactos..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              icon={
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              }
-            />
-          </div>
-          <div className="flex gap-1">
+        <div className="flex flex-col gap-3">
+          <Input
+            placeholder="Buscar contactos..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            icon={
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            }
+          />
+          <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-hide">
             {typeTabs.map((t) => (
               <button
                 key={t}
                 onClick={() => setFilterType(t)}
-                className={`px-3 py-1.5 text-sm rounded-lg font-medium transition-colors ${
+                className={`px-3 py-1.5 text-sm rounded-lg font-medium transition-colors whitespace-nowrap flex-shrink-0 ${
                   filterType === t ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
-                {typeLabels[t]}
+                {typeTabLabels[t]}
               </button>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      {/* Mobile card view */}
+      <div className="md:hidden space-y-3">
+        {loading ? (
+          <div className="text-center py-12 text-gray-400">Cargando...</div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-12 text-gray-400 bg-white rounded-xl border border-gray-200">No se encontraron contactos</div>
+        ) : (
+          filtered.map((contact) => (
+            <div
+              key={contact.id}
+              onClick={() => openDetail(contact)}
+              className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm active:bg-gray-50 cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-base font-semibold flex-shrink-0">
+                  {contact.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-gray-900 truncate">{contact.name}</p>
+                  <p className="text-sm text-gray-500 truncate">{contact.email || contact.phone || 'Sin datos de contacto'}</p>
+                </div>
+                <Badge variant={typeVariant[contact.type] || 'default'}>{typeLabels[contact.type] || contact.type}</Badge>
+              </div>
+              {contact.notes && (
+                <p className="mt-2 text-sm text-gray-500 line-clamp-2">{contact.notes}</p>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Desktop table view */}
+      <div className="hidden md:block bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         {loading ? (
           <div className="text-center py-12 text-gray-400">Cargando...</div>
         ) : (
@@ -260,7 +255,7 @@ export default function ContactosPage() {
             </TableHeader>
             <TableBody>
               {filtered.map((contact) => (
-                <TableRow key={contact.id}>
+                <TableRow key={contact.id} className="cursor-pointer hover:bg-gray-50" onClick={() => openDetail(contact)}>
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-sm font-semibold flex-shrink-0">
@@ -272,10 +267,10 @@ export default function ContactosPage() {
                   <TableCell className="text-gray-500">{contact.email || '-'}</TableCell>
                   <TableCell className="text-gray-500">{contact.phone || '-'}</TableCell>
                   <TableCell>
-                    <Badge variant={typeVariant[contact.type] || 'default'}>{contact.type}</Badge>
+                    <Badge variant={typeVariant[contact.type] || 'default'}>{typeLabels[contact.type] || contact.type}</Badge>
                   </TableCell>
                   <TableCell className="text-gray-500">{formatDate(contact.createdAt)}</TableCell>
-                  <TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
                     <div className="flex gap-1">
                       <button onClick={() => openEdit(contact)} className="p-1 text-gray-400 hover:text-blue-600 rounded transition-colors">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -300,6 +295,75 @@ export default function ContactosPage() {
           </Table>
         )}
       </div>
+
+      {/* Detail Modal */}
+      {detailContact && (
+        <Modal
+          open={!!detailContact}
+          onClose={() => setDetailContact(null)}
+          title={detailContact.name}
+          size="md"
+        >
+          <div className="space-y-4">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-2xl font-semibold flex-shrink-0">
+                {detailContact.name.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">{detailContact.name}</h3>
+                <Badge variant={typeVariant[detailContact.type] || 'default'}>{typeLabels[detailContact.type] || detailContact.type}</Badge>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3">
+              {detailContact.email && (
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                  <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  <a href={`mailto:${detailContact.email}`} className="text-sm text-blue-600 hover:underline truncate">{detailContact.email}</a>
+                </div>
+              )}
+              {detailContact.phone && (
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                  <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                  </svg>
+                  <a href={`tel:${detailContact.phone}`} className="text-sm text-blue-600 hover:underline">{detailContact.phone}</a>
+                </div>
+              )}
+              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span className="text-sm text-gray-600">Creado: {formatDate(detailContact.createdAt)}</span>
+              </div>
+            </div>
+
+            {detailContact.notes && (
+              <div>
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Notas</p>
+                <p className="text-sm text-gray-700 bg-gray-50 rounded-lg p-3 whitespace-pre-wrap">{detailContact.notes}</p>
+              </div>
+            )}
+
+            <div className="flex gap-2 pt-2">
+              <Button variant="secondary" onClick={() => openEdit(detailContact)} className="flex-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Editar
+              </Button>
+              <Button variant="danger" onClick={() => { setDetailContact(null); setDeleteId(detailContact.id) }} className="flex-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Eliminar
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {/* Create/Edit Modal */}
       <Modal

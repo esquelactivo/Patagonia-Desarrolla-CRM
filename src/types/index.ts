@@ -9,7 +9,7 @@ export type InquiryStatus = 'NUEVA' | 'CONTACTADA' | 'CALIFICADA' | 'DESCARTADA'
 export type DealStage = 'VISITA' | 'OFERTA' | 'RESERVA' | 'CIERRE'
 export type DealStatus = 'ACTIVA' | 'GANADA' | 'PERDIDA'
 
-export type ActivityType = 'VISITA' | 'LLAMADA' | 'REUNION' | 'SEGUIMIENTO'
+export type ActivityType = 'VISITA' | 'LLAMADA' | 'REUNION' | 'SEGUIMIENTO' | 'RECORDATORIO'
 
 export type CampaignType = 'NEWSLETTER' | 'FLYER'
 export type CampaignStatus = 'BORRADOR' | 'ENVIADA' | 'PROGRAMADA'
@@ -83,6 +83,15 @@ export interface Deal {
   property?: Property | null
 }
 
+export interface User {
+  id: string
+  email: string
+  name: string
+  role: string
+  avatar?: string | null
+  createdAt?: Date | string
+}
+
 export interface Activity {
   id: string
   title: string
@@ -93,10 +102,12 @@ export interface Activity {
   contactId?: string | null
   propertyId?: string | null
   dealId?: string | null
-  userId: string
+  inquiryId?: string | null
+  userId?: string | null
   createdAt: Date | string
   contact?: Contact | null
   property?: Property | null
+  inquiry?: Inquiry | null
 }
 
 export interface Campaign {
