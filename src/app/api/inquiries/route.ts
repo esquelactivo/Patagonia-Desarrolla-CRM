@@ -27,12 +27,45 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
+
+    // Cuando viene de Make, el message contiene todas las respuestas del formulario
+    // como "nombre_campo: valor". Extraemos los campos estándar y dejamos solo las preguntas.
+    const STANDARD_KEYS = ['full_name', 'email', 'phone', 'phone_number', 'city', 'zip', 'postal_code']
+
+    const extractField = (text: string, keys: string[]): string | null => {
+      for (const line of text.split('\n')) {
+        const colon = line.indexOf(':')
+        if (colon === -1) continue
+        const key = line.slice(0, colon).trim().toLowerCase()
+        if (keys.includes(key)) return line.slice(colon + 1).trim() || null
+      }
+      return null
+    }
+
+    const buildCustomMessage = (text: string): string | null => {
+      const lines = text.split('\n').filter(line => {
+        const colon = line.indexOf(':')
+        if (colon === -1) return true
+        const key = line.slice(0, colon).trim().toLowerCase()
+        return !STANDARD_KEYS.includes(key)
+      })
+      return lines.join('\n').trim() || null
+    }
+
+    const rawMessage = body.message || ''
+    const isFromMake = rawMessage.includes(':') && !body.name
+
+    const name = body.name || extractField(rawMessage, ['full_name', 'nombre']) || 'Sin nombre'
+    const email = body.email || extractField(rawMessage, ['email', 'correo'])
+    const phone = body.phone || extractField(rawMessage, ['phone', 'phone_number', 'telefono', 'teléfono'])
+    const message = isFromMake ? buildCustomMessage(rawMessage) : rawMessage || null
+
     const inquiry = await prisma.inquiry.create({
       data: {
-        name: body.name,
-        email: body.email || null,
-        phone: body.phone || null,
-        message: body.message || null,
+        name,
+        email: email || null,
+        phone: phone || null,
+        message: message || null,
         source: body.source || null,
         channel: body.channel || null,
         adName: body.adName || null,
