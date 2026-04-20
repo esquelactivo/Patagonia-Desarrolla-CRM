@@ -85,18 +85,6 @@ interface WaTemplate {
   message: string
 }
 
-const TEMPLATES_KEY = 'wa_templates'
-
-const loadTemplates = (): WaTemplate[] => {
-  try {
-    if (typeof window === 'undefined') return []
-    return JSON.parse(localStorage.getItem(TEMPLATES_KEY) || '[]')
-  } catch { return [] }
-}
-
-const saveTemplates = (templates: WaTemplate[]) => {
-  try { localStorage.setItem(TEMPLATES_KEY, JSON.stringify(templates)) } catch { /* ignore */ }
-}
 
 const statusTabs = ['Todas', 'NUEVA', 'CONTACTADA', 'CALIFICADA', 'DESCARTADA']
 
@@ -121,8 +109,15 @@ export default function ConsultasPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    setTemplates(loadTemplates())
+    fetchTemplates()
   }, [])
+
+  const fetchTemplates = async () => {
+    try {
+      const res = await fetch('/api/wa-templates')
+      if (res.ok) setTemplates(await res.json())
+    } catch { /* ignore */ }
+  }
 
   useEffect(() => {
     const role = getCookieValue('user_role')
@@ -298,24 +293,40 @@ export default function ConsultasPage() {
     setWaMessage(defaultMessage(inquiry.name))
   }
 
-  const handleSaveTemplate = () => {
+  const handleSaveTemplate = async () => {
     if (!templateForm.name || !templateForm.message) return
-    let updated: WaTemplate[]
-    if (editingTemplate) {
-      updated = templates.map(t => t.id === editingTemplate.id ? { ...t, ...templateForm } : t)
-    } else {
-      updated = [...templates, { id: Date.now().toString(), ...templateForm }]
-    }
-    saveTemplates(updated)
-    setTemplates(updated)
+    try {
+      if (editingTemplate) {
+        const res = await fetch(`/api/wa-templates?id=${editingTemplate.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(templateForm),
+        })
+        if (res.ok) {
+          const updated = await res.json()
+          setTemplates(templates.map(t => t.id === editingTemplate.id ? updated : t))
+        }
+      } else {
+        const res = await fetch('/api/wa-templates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(templateForm),
+        })
+        if (res.ok) {
+          const created = await res.json()
+          setTemplates([...templates, created])
+        }
+      }
+    } catch { /* ignore */ }
     setTemplateForm({ name: '', message: '' })
     setEditingTemplate(null)
   }
 
-  const handleDeleteTemplate = (id: string) => {
-    const updated = templates.filter(t => t.id !== id)
-    saveTemplates(updated)
-    setTemplates(updated)
+  const handleDeleteTemplate = async (id: string) => {
+    try {
+      await fetch(`/api/wa-templates?id=${id}`, { method: 'DELETE' })
+      setTemplates(templates.filter(t => t.id !== id))
+    } catch { /* ignore */ }
   }
 
   // Busca un campo en la fila ignorando BOM, espacios, mayúsculas y acentos

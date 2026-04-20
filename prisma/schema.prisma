@@ -15,12 +15,13 @@ model User {
   role       String     @default("AGENT")
   avatar     String?
   createdAt  DateTime   @default(now())
-  properties Property[]
-  activities Activity[]
-  contacts   Contact[]
-  inquiries  Inquiry[]
-  deals      Deal[]
-  campaigns  Campaign[]
+  properties  Property[]
+  activities  Activity[]
+  contacts    Contact[]
+  inquiries   Inquiry[]
+  deals       Deal[]
+  campaigns   Campaign[]
+  waTemplates WaTemplate[]
 }
 
 model Property {
@@ -141,6 +142,16 @@ model Campaign {
   createdAt  DateTime            @default(now())
   updatedAt  DateTime            @updatedAt
   recipients CampaignRecipient[]
+}
+
+model WaTemplate {
+  id        String   @id @default(cuid())
+  name      String
+  message   String
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model CampaignRecipient {

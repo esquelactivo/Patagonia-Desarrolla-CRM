@@ -21,6 +21,10 @@ const sizeClasses = {
 
 export function Modal({ open, onClose, title, children, size = 'md' }: ModalProps) {
   const closedByHistory = useRef(false)
+  // Stable ref so the history effect doesn't re-run every time the parent re-renders
+  // (which would happen if onClose were in the dependency array, closing the modal on each keystroke)
+  const onCloseRef = useRef(onClose)
+  useEffect(() => { onCloseRef.current = onClose }, [onClose])
 
   // Bloquear scroll del body
   useEffect(() => {
@@ -28,7 +32,7 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
     return () => { document.body.style.overflow = '' }
   }, [open])
 
-  // Botón de retroceso del celular
+  // Botón de retroceso del celular — solo depende de `open`, no de onClose
   useEffect(() => {
     if (!open) return
 
@@ -36,19 +40,18 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
 
     const handlePopState = () => {
       closedByHistory.current = true
-      onClose()
+      onCloseRef.current()
     }
 
     window.addEventListener('popstate', handlePopState)
     return () => {
       window.removeEventListener('popstate', handlePopState)
-      // Si se cerró por X o backdrop (no por back), limpiar el estado del historial
       if (!closedByHistory.current && history.state?.modal) {
         history.back()
       }
       closedByHistory.current = false
     }
-  }, [open, onClose])
+  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!open) return null
   if (typeof window === 'undefined') return null
@@ -57,9 +60,8 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
+        onClick={() => onCloseRef.current()}
       />
-      {/* flex col para que el header sea sticky y el contenido scrollee */}
       <div
         className={`relative bg-white rounded-xl shadow-xl w-full ${sizeClasses[size]} flex flex-col max-h-[90vh]`}
       >
@@ -67,7 +69,7 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
           <h2 className="text-lg font-semibold text-gray-900 pr-4 truncate">{title}</h2>
           <button
-            onClick={onClose}
+            onClick={() => onCloseRef.current()}
             className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-100"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
