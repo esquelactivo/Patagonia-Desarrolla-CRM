@@ -16,6 +16,7 @@ const pageTitles: Record<string, string> = {
   '/pipeline': 'Pipeline',
   '/campanias': 'Campañas',
   '/calendario': 'Calendario',
+  '/plantillas-wa': 'Plantillas WA',
   '/agenda': 'Agenda',
   '/notificaciones': 'Notificaciones',
   '/perfil': 'Mi Perfil',

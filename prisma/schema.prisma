@@ -148,6 +148,7 @@ model WaTemplate {
   id        String   @id @default(cuid())
   name      String
   message   String
+  formName  String?
   userId    String?
   user      User?    @relation(fields: [userId], references: [id])
   createdAt DateTime @default(now())
