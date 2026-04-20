@@ -81,6 +81,13 @@ export async function POST(request: Request) {
       } catch { /* mantener el ID si falla */ }
     }
 
+    // Auto-assign based on assignment rules if not manually assigned
+    let assignedTo = body.assignedTo || null
+    if (!assignedTo && adName) {
+      const rule = await prisma.assignmentRule.findUnique({ where: { formName: adName } })
+      if (rule) assignedTo = rule.userId
+    }
+
     const inquiry = await prisma.inquiry.create({
       data: {
         name,
@@ -96,7 +103,7 @@ export async function POST(request: Request) {
         propertyId: body.propertyId || null,
         contactId: body.contactId || null,
         status: body.status || 'NUEVA',
-        assignedTo: body.assignedTo || null,
+        assignedTo,
         ...(body.createdAt ? { createdAt: new Date(body.createdAt) } : {}),
       },
     })

@@ -21,6 +21,7 @@ const pageTitles: Record<string, string> = {
   '/notificaciones': 'Notificaciones',
   '/perfil': 'Mi Perfil',
   '/usuarios': 'Usuarios',
+  '/configuracion': 'Configuración',
 }
 
 interface NotifInquiry {
