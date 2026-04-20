@@ -83,6 +83,7 @@ interface WaTemplate {
   id: string
   name: string
   message: string
+  formName?: string | null
 }
 
 
