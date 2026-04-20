@@ -144,26 +144,23 @@ export function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
       `}
     >
       {/* Logo */}
-      <div className="flex items-center justify-between px-4 py-5 border-b border-slate-700">
-        {!collapsed && (
+      <div className="flex items-center justify-between px-3 py-4 border-b border-slate-700">
+        {collapsed ? (
+          <img
+            src="https://patagoniadesarrolla.com/wp-content/uploads/2023/07/touch-icon-blanco.png"
+            alt="Patagonia Desarrolla"
+            className="w-8 h-8 object-contain mx-auto"
+          />
+        ) : (
           <img
             src="https://patagoniadesarrolla.com/wp-content/themes/yootheme/cache/78/logo_w-78378161.png"
-            alt="Logo"
+            alt="Patagonia Desarrolla CRM"
             className="h-8 w-auto object-contain"
           />
         )}
-        {collapsed && (
-          <div className="w-8 h-8 flex items-center justify-center mx-auto">
-            <img
-              src="https://patagoniadesarrolla.com/wp-content/themes/yootheme/cache/78/logo_w-78378161.png"
-              alt="Logo"
-              className="h-6 w-auto object-contain"
-            />
-          </div>
-        )}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="text-slate-400 hover:text-white transition-colors p-1 rounded"
+          className="text-slate-400 hover:text-white transition-colors p-1 rounded flex-shrink-0"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             {collapsed ? (

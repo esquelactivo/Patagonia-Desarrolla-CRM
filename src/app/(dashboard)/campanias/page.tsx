@@ -74,7 +74,7 @@ const templates = [
 ]
 
 const templateContent: Record<string, string> = {
-  newsletter_basic: 'Estimado cliente,\n\nLe presentamos las últimas novedades del mercado inmobiliario...\n\nSaludos,\nEl equipo de InmoCRM',
+  newsletter_basic: 'Estimado cliente,\n\nLe presentamos las últimas novedades del mercado inmobiliario...\n\nSaludos,\nEl equipo de Patagonia Desarrolla',
   newsletter_properties: 'Estimado cliente,\n\nEstas son las propiedades destacadas del mes:\n\n- Propiedad 1\n- Propiedad 2\n- Propiedad 3\n\nContáctenos para más información.',
   flyer_promo: '🏠 OPORTUNIDADES ÚNICAS\n\nPropiedades en venta y alquiler a precios especiales.\nNo te pierdas estas ofertas exclusivas.',
   flyer_new: '✨ NUEVAS PROPIEDADES\n\nAcabamos de incorporar estas propiedades a nuestro catálogo.\nVisítalas y encontrá tu próximo hogar.',

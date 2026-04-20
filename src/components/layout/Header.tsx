@@ -50,7 +50,7 @@ const markSeen = (ids: string[]) => {
 export function Header({ onMenuClick }: HeaderProps) {
   const pathname = usePathname()
   const router = useRouter()
-  const title = pageTitles[pathname] || 'InmoCRM'
+  const title = pageTitles[pathname] || 'Patagonia Desarrolla CRM'
 
   const [open, setOpen] = useState(false)
   const [inquiries, setInquiries] = useState<NotifInquiry[]>([])

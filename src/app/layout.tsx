@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'InmoCRM',
+  title: 'Patagonia Desarrolla CRM',
   description: 'Sistema CRM para inmobiliarias',
 }
 
