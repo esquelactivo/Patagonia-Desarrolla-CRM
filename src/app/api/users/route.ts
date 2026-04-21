@@ -6,13 +6,20 @@ import { getUserFromRequest } from '@/lib/getUser'
 export async function GET() {
   try {
     const user = await getUserFromRequest()
-    if (!user || user.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    if (user.role === 'ADMIN') {
+      const users = await prisma.user.findMany({
+        orderBy: { createdAt: 'asc' },
+        select: { id: true, email: true, name: true, role: true, createdAt: true },
+      })
+      return NextResponse.json(users)
     }
 
+    // Non-admins: only id + name (for participant selection)
     const users = await prisma.user.findMany({
-      orderBy: { createdAt: 'asc' },
-      select: { id: true, email: true, name: true, role: true, createdAt: true },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true },
     })
     return NextResponse.json(users)
   } catch {

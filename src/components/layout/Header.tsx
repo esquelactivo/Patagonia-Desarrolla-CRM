@@ -32,6 +32,14 @@ interface NotifInquiry {
   createdAt: string
 }
 
+interface NotifActivity {
+  id: string
+  title: string
+  type: string
+  date: string
+  user?: { id: string; name: string } | null
+}
+
 interface CurrentUser {
   id: string
   name: string
@@ -57,14 +65,16 @@ export function Header({ onMenuClick }: HeaderProps) {
   const [open, setOpen] = useState(false)
   const [inquiries, setInquiries] = useState<NotifInquiry[]>([])
   const [seenIds, setSeenIds] = useState<string[]>([])
+  const [sharedActivities, setSharedActivities] = useState<NotifActivity[]>([])
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setSeenIds(getSeenIds())
     fetchNew()
+    fetchSharedActivities()
     fetchCurrentUser()
-    const interval = setInterval(fetchNew, 60000)
+    const interval = setInterval(() => { fetchNew(); fetchSharedActivities() }, 60000)
     return () => clearInterval(interval)
   }, [])
 
@@ -97,7 +107,17 @@ export function Header({ onMenuClick }: HeaderProps) {
     } catch {}
   }
 
+  const fetchSharedActivities = async () => {
+    try {
+      const res = await fetch('/api/activities?participating=true&notified=false')
+      if (!res.ok) return
+      const data: NotifActivity[] = await res.json()
+      setSharedActivities(data.slice(0, 5))
+    } catch {}
+  }
+
   const unseen = inquiries.filter(i => !seenIds.includes(i.id))
+  const totalUnseen = unseen.length + sharedActivities.length
 
   const handleOpen = () => {
     setOpen(o => !o)
@@ -105,6 +125,10 @@ export function Header({ onMenuClick }: HeaderProps) {
       const allIds = inquiries.map(i => i.id)
       markSeen(allIds)
       setSeenIds(allIds)
+      if (sharedActivities.length > 0) {
+        fetch('/api/activities/mark-seen', { method: 'POST' }).catch(() => {})
+        setSharedActivities([])
+      }
     }
   }
 
@@ -155,9 +179,9 @@ export function Header({ onMenuClick }: HeaderProps) {
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
             </svg>
-            {unseen.length > 0 && (
+            {totalUnseen > 0 && (
               <span className="absolute top-1 right-1 min-w-[16px] h-4 bg-red-500 rounded-full flex items-center justify-center text-white text-[10px] font-bold px-0.5">
-                {unseen.length > 9 ? '9+' : unseen.length}
+                {totalUnseen > 9 ? '9+' : totalUnseen}
               </span>
             )}
           </button>
@@ -169,15 +193,11 @@ export function Header({ onMenuClick }: HeaderProps) {
                 <button onClick={handleGoToConsultas} className="text-xs text-blue-600 hover:underline">Ver todas</button>
               </div>
               {inquiries.length === 0 ? (
-                <div className="px-4 py-6 text-center text-sm text-gray-400">Sin consultas nuevas</div>
+                <div className="px-4 py-5 text-center text-sm text-gray-400">Sin consultas nuevas</div>
               ) : (
-                <ul className="max-h-72 overflow-y-auto divide-y divide-gray-50">
+                <ul className="max-h-48 overflow-y-auto divide-y divide-gray-50">
                   {inquiries.map(i => (
-                    <li
-                      key={i.id}
-                      onClick={handleGoToConsultas}
-                      className="px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors"
-                    >
+                    <li key={i.id} onClick={handleGoToConsultas} className="px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors">
                       <p className="text-sm font-medium text-gray-900">{i.name}</p>
                       <p className="text-xs text-gray-500 mt-0.5 truncate">
                         {i.adName || i.source || 'Sin origen'} · {formatTime(i.createdAt)}
@@ -185,6 +205,22 @@ export function Header({ onMenuClick }: HeaderProps) {
                     </li>
                   ))}
                 </ul>
+              )}
+              {sharedActivities.length > 0 && (
+                <>
+                  <div className="px-4 py-2 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
+                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Actividades compartidas</span>
+                    <button onClick={() => { setOpen(false); router.push('/notificaciones') }} className="text-xs text-blue-600 hover:underline">Ver todas</button>
+                  </div>
+                  <ul className="max-h-36 overflow-y-auto divide-y divide-gray-50">
+                    {sharedActivities.map(a => (
+                      <li key={a.id} onClick={() => { setOpen(false); router.push('/agenda') }} className="px-4 py-3 hover:bg-indigo-50 cursor-pointer transition-colors">
+                        <p className="text-sm font-medium text-gray-900">{a.title}</p>
+                        {a.user && <p className="text-xs text-indigo-600 mt-0.5">De {a.user.name} · {formatTime(a.date)}</p>}
+                      </li>
+                    ))}
+                  </ul>
+                </>
               )}
             </div>
           )}

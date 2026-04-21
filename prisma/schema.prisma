@@ -21,8 +21,9 @@ model User {
   inquiries   Inquiry[]
   deals       Deal[]
   campaigns        Campaign[]
-  waTemplates      WaTemplate[]
-  assignmentRules  AssignmentRule[]
+  waTemplates          WaTemplate[]
+  assignmentRules      AssignmentRule[]
+  activityParticipations ActivityParticipant[]
 }
 
 model Property {
@@ -111,23 +112,36 @@ model Deal {
 }
 
 model Activity {
-  id         String    @id @default(cuid())
-  title      String
-  type       String    @default("LLAMADA")
-  date       DateTime
-  done       Boolean   @default(false)
-  notes      String?
-  contactId  String?
-  contact    Contact?  @relation(fields: [contactId], references: [id])
-  propertyId String?
-  property   Property? @relation(fields: [propertyId], references: [id])
-  dealId     String?
-  deal       Deal?     @relation(fields: [dealId], references: [id])
-  inquiryId  String?
-  inquiry    Inquiry?  @relation(fields: [inquiryId], references: [id])
-  userId     String?
-  user       User?     @relation(fields: [userId], references: [id])
-  createdAt  DateTime  @default(now())
+  id           String               @id @default(cuid())
+  title        String
+  type         String               @default("LLAMADA")
+  date         DateTime
+  done         Boolean              @default(false)
+  notes        String?
+  contactId    String?
+  contact      Contact?             @relation(fields: [contactId], references: [id])
+  propertyId   String?
+  property     Property?            @relation(fields: [propertyId], references: [id])
+  dealId       String?
+  deal         Deal?                @relation(fields: [dealId], references: [id])
+  inquiryId    String?
+  inquiry      Inquiry?             @relation(fields: [inquiryId], references: [id])
+  userId       String?
+  user         User?                @relation(fields: [userId], references: [id])
+  createdAt    DateTime             @default(now())
+  participants ActivityParticipant[]
+}
+
+model ActivityParticipant {
+  id         String   @id @default(cuid())
+  activityId String
+  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notified   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@unique([activityId, userId])
 }
 
 model Campaign {

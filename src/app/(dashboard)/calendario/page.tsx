@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { Input } from '@/components/ui/Input'
@@ -8,6 +8,76 @@ import { Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
 import { Textarea } from '@/components/ui/Textarea'
 import type { Activity } from '@/types'
+
+interface UserOption { id: string; name: string }
+
+function ParticipantSelector({
+  agents, selectedIds, currentUserId, onChange,
+}: {
+  agents: UserOption[]; selectedIds: string[]; currentUserId: string | null; onChange: (ids: string[]) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  const available = agents.filter((a) => a.id !== currentUserId)
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const toggle = (id: string) =>
+    onChange(selectedIds.includes(id) ? selectedIds.filter((x) => x !== id) : [...selectedIds, id])
+
+  return (
+    <div ref={ref} className="relative">
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        Notificar a agentes <span className="text-gray-400 font-normal">(opcional)</span>
+      </label>
+      <button type="button" onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <span className={selectedIds.length === 0 ? 'text-gray-400' : 'text-gray-800'}>
+          {selectedIds.length === 0 ? 'Seleccionar agentes...' : `${selectedIds.length} seleccionado${selectedIds.length > 1 ? 's' : ''}`}
+        </span>
+        <svg className={`w-4 h-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+          {available.length === 0 ? (
+            <p className="px-3 py-3 text-sm text-gray-400">No hay otros agentes disponibles</p>
+          ) : (
+            <ul className="max-h-40 overflow-y-auto divide-y divide-gray-50">
+              {available.map((agent) => (
+                <li key={agent.id}>
+                  <label className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 cursor-pointer">
+                    <input type="checkbox" checked={selectedIds.includes(agent.id)} onChange={() => toggle(agent.id)}
+                      className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                    <span className="text-sm text-gray-700">{agent.name}</span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+      {selectedIds.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {selectedIds.map((id) => {
+            const name = agents.find((a) => a.id === id)?.name
+            return name ? (
+              <span key={id} className="inline-flex items-center gap-1 text-xs bg-blue-50 text-blue-700 border border-blue-100 px-2 py-0.5 rounded-full">
+                {name}
+                <button type="button" onClick={() => toggle(id)} className="hover:text-blue-900 ml-0.5">×</button>
+              </span>
+            ) : null
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
 
 const today = new Date()
 const thisYear = today.getFullYear()
@@ -108,15 +178,20 @@ const emptyForm = {
 
 export default function CalendarioPage() {
   const [activities, setActivities] = useState<Activity[]>([])
+  const [agents, setAgents] = useState<UserOption[]>([])
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [currentDate, setCurrentDate] = useState(new Date(thisYear, thisMonth, 1))
   const [selectedDay, setSelectedDay] = useState<number | null>(today.getDate())
   const [modalOpen, setModalOpen] = useState(false)
   const [form, setForm] = useState(emptyForm)
+  const [participantIds, setParticipantIds] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     fetchActivities()
+    fetch('/api/users').then(r => r.ok ? r.json() : []).then(setAgents).catch(() => {})
+    fetch('/api/auth/me').then(r => r.ok ? r.json() : null).then(me => { if (me) setCurrentUserId(me.id) }).catch(() => {})
   }, [])
 
   const fetchActivities = async () => {
@@ -174,38 +249,19 @@ export default function CalendarioPage() {
           ? new Date(form.date).toISOString()
           : new Date().toISOString()
 
-      const newActivity: Activity = {
-        id: String(Date.now()),
-        title: form.title,
-        type: form.type,
-        date: dateTime,
-        done: false,
-        notes: form.notes || null,
-        contactId: null,
-        propertyId: null,
-        dealId: null,
-        userId: 'demo',
-        createdAt: new Date().toISOString(),
-      }
-
-      try {
-        const res = await fetch('/api/activities', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: form.title, type: form.type, date: dateTime, notes: form.notes }),
-        })
-        if (res.ok) {
-          const created = await res.json()
-          setActivities([...activities, created])
-        } else {
-          setActivities([...activities, newActivity])
-        }
-      } catch {
-        setActivities([...activities, newActivity])
+      const res = await fetch('/api/activities', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: form.title, type: form.type, date: dateTime, notes: form.notes, participantIds }),
+      })
+      if (res.ok) {
+        const created = await res.json()
+        setActivities([...activities, created])
       }
 
       setModalOpen(false)
       setForm(emptyForm)
+      setParticipantIds([])
     } finally {
       setSaving(false)
     }
@@ -411,6 +467,12 @@ export default function CalendarioPage() {
             onChange={(e) => setForm({ ...form, notes: e.target.value })}
             placeholder="Notas adicionales..."
             rows={3}
+          />
+          <ParticipantSelector
+            agents={agents}
+            selectedIds={participantIds}
+            currentUserId={currentUserId}
+            onChange={setParticipantIds}
           />
           <div className="flex justify-end gap-3 pt-2">
             <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancelar</Button>

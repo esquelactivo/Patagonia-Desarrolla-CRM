@@ -1,12 +1,16 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/Button'
-import { Badge } from '@/components/ui/Badge'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
 import { Textarea } from '@/components/ui/Textarea'
+
+interface Participant {
+  userId: string
+  user: { id: string; name: string }
+}
 
 interface ActivityItem {
   id: string
@@ -19,6 +23,13 @@ interface ActivityItem {
   inquiryId?: string | null
   contact?: { id: string; name: string } | null
   inquiry?: { id: string; name: string; adName?: string | null } | null
+  user?: { id: string; name: string } | null
+  participants?: Participant[]
+}
+
+interface UserOption {
+  id: string
+  name: string
 }
 
 interface ContactOption {
@@ -77,26 +88,128 @@ function getDefaultDatetime(): string {
   return toLocalDatetimeInput(d.toISOString())
 }
 
+// Participant multi-select component
+function ParticipantSelector({
+  agents,
+  selectedIds,
+  currentUserId,
+  onChange,
+}: {
+  agents: UserOption[]
+  selectedIds: string[]
+  currentUserId: string | null
+  onChange: (ids: string[]) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  const available = agents.filter((a) => a.id !== currentUserId)
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const toggle = (id: string) => {
+    onChange(selectedIds.includes(id) ? selectedIds.filter((x) => x !== id) : [...selectedIds, id])
+  }
+
+  const selectedNames = selectedIds.map((id) => agents.find((a) => a.id === id)?.name).filter(Boolean)
+
+  return (
+    <div ref={ref} className="relative">
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        Notificar a agentes <span className="text-gray-400 font-normal">(opcional)</span>
+      </label>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+      >
+        <span className={selectedIds.length === 0 ? 'text-gray-400' : 'text-gray-800'}>
+          {selectedIds.length === 0
+            ? 'Seleccionar agentes...'
+            : `${selectedIds.length} agente${selectedIds.length > 1 ? 's' : ''} seleccionado${selectedIds.length > 1 ? 's' : ''}`}
+        </span>
+        <svg className={`w-4 h-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+          {available.length === 0 ? (
+            <p className="px-3 py-3 text-sm text-gray-400">No hay otros agentes disponibles</p>
+          ) : (
+            <ul className="max-h-40 overflow-y-auto divide-y divide-gray-50">
+              {available.map((agent) => (
+                <li key={agent.id}>
+                  <label className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(agent.id)}
+                      onChange={() => toggle(agent.id)}
+                      className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700">{agent.name}</span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {selectedIds.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {selectedNames.map((name, i) => (
+            <span
+              key={selectedIds[i]}
+              className="inline-flex items-center gap-1 text-xs bg-blue-50 text-blue-700 border border-blue-100 px-2 py-0.5 rounded-full"
+            >
+              {name}
+              <button
+                type="button"
+                onClick={() => toggle(selectedIds[i])}
+                className="hover:text-blue-900 ml-0.5 leading-none"
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function AgendaPage() {
   const [activities, setActivities] = useState<ActivityItem[]>([])
   const [contacts, setContacts] = useState<ContactOption[]>([])
   const [inquiries, setInquiries] = useState<InquiryOption[]>([])
+  const [agents, setAgents] = useState<UserOption[]>([])
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'pending' | 'done' | 'all'>('pending')
   const [modalOpen, setModalOpen] = useState(false)
   const [editItem, setEditItem] = useState<ActivityItem | null>(null)
   const [form, setForm] = useState({ ...emptyForm, date: getDefaultDatetime() })
+  const [participantIds, setParticipantIds] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
 
   useEffect(() => {
     fetchAll()
+    // Mark participant notifications as seen when visiting agenda
+    fetch('/api/activities/mark-seen', { method: 'POST' }).catch(() => {})
   }, [])
 
   const fetchAll = async () => {
     setLoading(true)
-    await Promise.all([fetchActivities(), fetchContacts(), fetchInquiries()])
+    await Promise.all([fetchActivities(), fetchContacts(), fetchInquiries(), fetchAgents(), fetchCurrentUser()])
     setLoading(false)
   }
 
@@ -124,6 +237,23 @@ export default function AgendaPage() {
     } catch { /* ignore */ }
   }
 
+  const fetchAgents = async () => {
+    try {
+      const res = await fetch('/api/users')
+      if (res.ok) setAgents(await res.json())
+    } catch { /* ignore */ }
+  }
+
+  const fetchCurrentUser = async () => {
+    try {
+      const res = await fetch('/api/auth/me')
+      if (res.ok) {
+        const me = await res.json()
+        setCurrentUserId(me.id)
+      }
+    } catch { /* ignore */ }
+  }
+
   const showToast = (msg: string) => {
     setToast(msg)
     setTimeout(() => setToast(null), 3000)
@@ -140,6 +270,7 @@ export default function AgendaPage() {
   const openCreate = () => {
     setEditItem(null)
     setForm({ ...emptyForm, date: getDefaultDatetime() })
+    setParticipantIds([])
     setModalOpen(true)
   }
 
@@ -153,6 +284,7 @@ export default function AgendaPage() {
       contactId: item.contactId || '',
       inquiryId: item.inquiryId || '',
     })
+    setParticipantIds(item.participants?.map((p) => p.userId) || [])
     setModalOpen(true)
   }
 
@@ -167,6 +299,7 @@ export default function AgendaPage() {
         notes: form.notes || null,
         contactId: form.contactId || null,
         inquiryId: form.inquiryId || null,
+        participantIds,
       }
       if (editItem) {
         const res = await fetch(`/api/activities?id=${editItem.id}`, {
@@ -238,6 +371,7 @@ export default function AgendaPage() {
   }
 
   const pendingCount = activities.filter((a) => !a.done).length
+  const isInvited = (item: ActivityItem) => item.user && item.user.id !== currentUserId
 
   return (
     <div className="max-w-3xl mx-auto space-y-4">
@@ -247,7 +381,6 @@ export default function AgendaPage() {
         </div>
       )}
 
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-gray-900">Agenda</h2>
@@ -261,7 +394,6 @@ export default function AgendaPage() {
         </Button>
       </div>
 
-      {/* Filter tabs */}
       <div className="flex gap-2">
         {(['pending', 'all', 'done'] as const).map((f) => (
           <button
@@ -276,7 +408,6 @@ export default function AgendaPage() {
         ))}
       </div>
 
-      {/* List */}
       {loading ? (
         <div className="text-center py-12 text-gray-400">Cargando...</div>
       ) : sorted.length === 0 ? (
@@ -290,6 +421,7 @@ export default function AgendaPage() {
         <div className="space-y-2">
           {sorted.map((item) => {
             const { label, past, today } = formatDate(item.date)
+            const invited = isInvited(item)
             return (
               <div
                 key={item.id}
@@ -317,22 +449,26 @@ export default function AgendaPage() {
                         {item.title}
                       </p>
                       <div className="flex items-center gap-1 flex-shrink-0">
-                        <button
-                          onClick={() => openEdit(item)}
-                          className="p-1 text-gray-400 hover:text-blue-600 rounded transition-colors"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => setDeleteId(item.id)}
-                          className="p-1 text-gray-400 hover:text-red-600 rounded transition-colors"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
+                        {!invited && (
+                          <button
+                            onClick={() => openEdit(item)}
+                            className="p-1 text-gray-400 hover:text-blue-600 rounded transition-colors"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                        )}
+                        {!invited && (
+                          <button
+                            onClick={() => setDeleteId(item.id)}
+                            className="p-1 text-gray-400 hover:text-red-600 rounded transition-colors"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -344,6 +480,11 @@ export default function AgendaPage() {
                         {label}
                         {past && !item.done && ' — Vencido'}
                       </span>
+                      {invited && (
+                        <span className="text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full font-medium">
+                          Invitado por {item.user?.name}
+                        </span>
+                      )}
                     </div>
 
                     {(item.contact || item.inquiry) && (
@@ -364,6 +505,17 @@ export default function AgendaPage() {
                             {item.inquiry.name}
                           </span>
                         )}
+                      </div>
+                    )}
+
+                    {item.participants && item.participants.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        <span className="text-xs text-gray-400 self-center">Con:</span>
+                        {item.participants.map((p) => (
+                          <span key={p.userId} className="inline-flex items-center text-xs text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full">
+                            {p.user.name}
+                          </span>
+                        ))}
                       </div>
                     )}
 
@@ -424,6 +576,12 @@ export default function AgendaPage() {
               { value: '', label: 'Sin consulta' },
               ...inquiries.map((i) => ({ value: i.id, label: `${i.name}${i.adName ? ` · ${i.adName}` : ''}` })),
             ]}
+          />
+          <ParticipantSelector
+            agents={agents}
+            selectedIds={participantIds}
+            currentUserId={currentUserId}
+            onChange={setParticipantIds}
           />
           <Textarea
             label="Notas (opcional)"
