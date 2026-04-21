@@ -70,14 +70,6 @@ const mockInquiries: Inquiry[] = [
   },
 ]
 
-const getCookieValue = (name: string): string | null => {
-  try {
-    const match = document.cookie.split(';').find((c) => c.trim().startsWith(name + '='))
-    return match ? decodeURIComponent(match.trim().split('=')[1]) : null
-  } catch {
-    return null
-  }
-}
 
 interface WaTemplate {
   id: string
@@ -121,12 +113,20 @@ export default function ConsultasPage() {
   }
 
   useEffect(() => {
-    const role = getCookieValue('user_role')
-    if (role === 'ADMIN') {
-      setIsAdmin(true)
-      fetchAgents()
+    const init = async () => {
+      try {
+        const res = await fetch('/api/auth/me')
+        if (res.ok) {
+          const me = await res.json()
+          if (me.role === 'ADMIN') {
+            setIsAdmin(true)
+            fetchAgents()
+          }
+        }
+      } catch { /* ignore */ }
+      fetchInquiries()
     }
-    fetchInquiries()
+    init()
   }, [])
 
   const fetchAgents = async () => {
