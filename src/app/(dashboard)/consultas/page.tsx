@@ -775,6 +775,26 @@ export default function ConsultasPage() {
               )}
             </div>
 
+            {/* Asignación manual (admin) */}
+            {isAdmin && (
+              <div className="bg-gray-50 rounded-lg px-4 py-3">
+                <p className="text-xs text-gray-400 mb-1.5">Asignar a agente</p>
+                <select
+                  value={selectedInquiry.assignedTo || ''}
+                  onChange={async (e) => {
+                    await handleAssignChange(selectedInquiry.id, e.target.value)
+                    setSelectedInquiry({ ...selectedInquiry, assignedTo: e.target.value || null, assignedUser: agents.find(a => a.id === e.target.value) || null })
+                  }}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Sin asignar</option>
+                  {agents.map((agent) => (
+                    <option key={agent.id} value={agent.id}>{agent.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {/* Acciones */}
             <div className="flex gap-2 flex-wrap">
               <Button variant="secondary" onClick={() => handleAddToContacts(selectedInquiry)}>
