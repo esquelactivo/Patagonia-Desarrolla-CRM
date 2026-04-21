@@ -91,6 +91,7 @@ export default function ConsultasPage() {
   const [csvPreview, setCsvPreview] = useState<(Inquiry & { channel?: string | null; adName?: string | null })[]>([])
   const [csvImporting, setCsvImporting] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [agents, setAgents] = useState<Agent[]>([])
   const [selectedInquiry, setSelectedInquiry] = useState<(Inquiry & { assignedTo?: string | null; assignedUser?: Agent | null }) | null>(null)
   const [pipelineSuccess, setPipelineSuccess] = useState<string | null>(null)
@@ -99,6 +100,9 @@ export default function ConsultasPage() {
   const [templatesModalOpen, setTemplatesModalOpen] = useState(false)
   const [editingTemplate, setEditingTemplate] = useState<WaTemplate | null>(null)
   const [templateForm, setTemplateForm] = useState({ name: '', message: '' })
+  const [newModalOpen, setNewModalOpen] = useState(false)
+  const [newForm, setNewForm] = useState({ name: '', email: '', phone: '', message: '', source: '', channel: '', adName: '', city: '', province: '', status: 'NUEVA', assignedTo: '' })
+  const [savingNew, setSavingNew] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -118,6 +122,7 @@ export default function ConsultasPage() {
         const res = await fetch('/api/auth/me')
         if (res.ok) {
           const me = await res.json()
+          setCurrentUserId(me.id)
           if (me.role === 'ADMIN') {
             setIsAdmin(true)
             fetchAgents()
@@ -261,6 +266,39 @@ export default function ConsultasPage() {
     } catch {
       alert('No se pudo agregar a contactos. Intentá de nuevo.')
     }
+  }
+
+  const handleCreateManual = async () => {
+    if (!newForm.name.trim()) return
+    setSavingNew(true)
+    try {
+      const res = await fetch('/api/inquiries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newForm.name.trim(),
+          email: newForm.email || null,
+          phone: newForm.phone || null,
+          message: newForm.message || null,
+          source: newForm.source || null,
+          channel: newForm.channel || null,
+          adName: newForm.adName || null,
+          city: newForm.city || null,
+          province: newForm.province || null,
+          status: newForm.status,
+          assignedTo: isAdmin ? (newForm.assignedTo || null) : (currentUserId || null),
+        }),
+      })
+      if (res.ok) {
+        const created = await res.json()
+        setInquiries([created, ...inquiries])
+        setNewModalOpen(false)
+        setNewForm({ name: '', email: '', phone: '', message: '', source: '', channel: '', adName: '', city: '', province: '', status: 'NUEVA', assignedTo: '' })
+        setPipelineSuccess('Consulta creada exitosamente.')
+        setTimeout(() => setPipelineSuccess(null), 3000)
+      }
+    } catch { /* ignore */ }
+    setSavingNew(false)
   }
 
   const handleDelete = async (id: string) => {
@@ -499,6 +537,12 @@ export default function ConsultasPage() {
             onChange={handleFileSelect}
             className="hidden"
           />
+          <Button onClick={() => setNewModalOpen(true)}>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Nueva consulta
+          </Button>
           <Button
             variant="secondary"
             onClick={() => { setEditingTemplate(null); setTemplateForm({ name: '', message: '' }); setTemplatesModalOpen(true) }}
@@ -954,6 +998,175 @@ export default function ConsultasPage() {
             <Button variant="secondary" onClick={() => { setCsvModalOpen(false); setCsvPreview([]) }}>Cancelar</Button>
             <Button onClick={handleImportCSV} loading={csvImporting}>
               Importar {csvPreview.length} consultas
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Nueva consulta manual */}
+      <Modal
+        open={newModalOpen}
+        onClose={() => setNewModalOpen(false)}
+        title="Nueva consulta"
+        size="lg"
+      >
+        <div className="space-y-4">
+          {/* Nombre */}
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Nombre <span className="text-red-500">*</span></label>
+            <input
+              type="text"
+              value={newForm.name}
+              onChange={e => setNewForm({ ...newForm, name: e.target.value })}
+              placeholder="Nombre del interesado"
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          {/* Email + Teléfono */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Email</label>
+              <input
+                type="email"
+                value={newForm.email}
+                onChange={e => setNewForm({ ...newForm, email: e.target.value })}
+                placeholder="correo@ejemplo.com"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Teléfono</label>
+              <input
+                type="tel"
+                value={newForm.phone}
+                onChange={e => setNewForm({ ...newForm, phone: e.target.value })}
+                placeholder="+54 9 11 ..."
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          {/* Mensaje */}
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Mensaje / Consulta</label>
+            <textarea
+              value={newForm.message}
+              onChange={e => setNewForm({ ...newForm, message: e.target.value })}
+              placeholder="¿En qué está interesado?"
+              rows={3}
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+            />
+          </div>
+
+          {/* Origen + Canal */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Origen</label>
+              <select
+                value={newForm.source}
+                onChange={e => setNewForm({ ...newForm, source: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              >
+                <option value="">Sin especificar</option>
+                <option value="Web">Web</option>
+                <option value="Zonaprop">Zonaprop</option>
+                <option value="Argenprop">Argenprop</option>
+                <option value="MercadoLibre">MercadoLibre</option>
+                <option value="Instagram">Instagram</option>
+                <option value="Facebook">Facebook</option>
+                <option value="WhatsApp">WhatsApp</option>
+                <option value="Referido">Referido</option>
+                <option value="Teléfono">Teléfono</option>
+                <option value="Email directo">Email directo</option>
+                <option value="Presencial">Presencial</option>
+                <option value="Otro">Otro</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Canal</label>
+              <input
+                type="text"
+                value={newForm.channel}
+                onChange={e => setNewForm({ ...newForm, channel: e.target.value })}
+                placeholder="ej: Instagram, Facebook Ads..."
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          {/* Formulario/Anuncio */}
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Formulario / Anuncio</label>
+            <input
+              type="text"
+              value={newForm.adName}
+              onChange={e => setNewForm({ ...newForm, adName: e.target.value })}
+              placeholder="Nombre del formulario o anuncio"
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          {/* Ciudad + Provincia */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Ciudad</label>
+              <input
+                type="text"
+                value={newForm.city}
+                onChange={e => setNewForm({ ...newForm, city: e.target.value })}
+                placeholder="Buenos Aires"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Provincia</label>
+              <input
+                type="text"
+                value={newForm.province}
+                onChange={e => setNewForm({ ...newForm, province: e.target.value })}
+                placeholder="Buenos Aires"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          {/* Estado + Asignar a (admin) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Estado</label>
+              <select
+                value={newForm.status}
+                onChange={e => setNewForm({ ...newForm, status: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              >
+                <option value="NUEVA">Nueva</option>
+                <option value="CONTACTADA">Contactada</option>
+                <option value="CALIFICADA">Calificada</option>
+                <option value="DESCARTADA">Descartada</option>
+              </select>
+            </div>
+            {isAdmin && (
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Asignar a agente</label>
+                <select
+                  value={newForm.assignedTo}
+                  onChange={e => setNewForm({ ...newForm, assignedTo: e.target.value })}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                >
+                  <option value="">Sin asignar</option>
+                  {agents.map(a => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button variant="secondary" onClick={() => setNewModalOpen(false)}>Cancelar</Button>
+            <Button onClick={handleCreateManual} loading={savingNew} disabled={!newForm.name.trim()}>
+              Crear consulta
             </Button>
           </div>
         </div>
