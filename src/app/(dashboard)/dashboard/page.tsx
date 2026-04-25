@@ -107,16 +107,16 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-4 gap-2 md:gap-4">
         {metrics.map((m) => (
           <Card key={m.title}>
-            <CardContent className="flex items-center gap-4 py-5">
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${m.color}`}>
+            <CardContent className="flex flex-col md:flex-row items-center gap-1.5 md:gap-4 py-3 md:py-5 px-2 md:px-6">
+              <div className={`w-9 h-9 md:w-12 md:h-12 rounded-lg md:rounded-xl flex items-center justify-center flex-shrink-0 ${m.color}`}>
                 {m.icon}
               </div>
-              <div>
-                <p className="text-sm text-gray-500">{m.title}</p>
-                <p className="text-2xl font-bold text-gray-900">{m.value}</p>
+              <div className="text-center md:text-left min-w-0">
+                <p className="text-[10px] leading-tight md:text-sm text-gray-500">{m.title}</p>
+                <p className="text-lg md:text-2xl font-bold text-gray-900">{m.value}</p>
               </div>
             </CardContent>
           </Card>
