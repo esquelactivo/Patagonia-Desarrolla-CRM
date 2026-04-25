@@ -58,10 +58,16 @@ function formatDatetime(dateStr: string): string {
 }
 
 const inquiryStatusVariant: Record<string, 'default' | 'info' | 'success' | 'warning' | 'danger'> = {
-  NUEVA: 'info',
-  CONTACTADA: 'warning',
-  CALIFICADA: 'success',
-  DESCARTADA: 'danger',
+  SIN_CONTACTAR: 'info', ESPERANDO_RESPUESTA: 'warning', CONTACTO_ESTABLECIDO: 'default',
+  EN_SEGUIMIENTO: 'success', DESCARTADA: 'danger', ARCHIVADA: 'default',
+  NUEVA: 'info', CONTACTADA: 'warning', CALIFICADA: 'success',
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  SIN_CONTACTAR: 'Sin contactar', ESPERANDO_RESPUESTA: 'Esp. respuesta',
+  CONTACTO_ESTABLECIDO: 'Contacto est.', EN_SEGUIMIENTO: 'En seguimiento',
+  DESCARTADA: 'Descartada', ARCHIVADA: 'Archivada',
+  NUEVA: 'Sin contactar', CONTACTADA: 'Esperando resp.', CALIFICADA: 'En seguimiento',
 }
 
 export default function NotificacionesPage() {
@@ -156,7 +162,7 @@ export default function NotificacionesPage() {
   })
 
   const dueReminders = reminders.filter((r) => !r.done && new Date(r.date) <= new Date())
-  const newInquiries = inquiries.filter((i) => i.status === 'NUEVA')
+  const newInquiries = inquiries.filter((i) => ['SIN_CONTACTAR', 'NUEVA'].includes(i.status))
   const pendingShared = sharedActivities.filter((a) => !a.done)
 
   const filterTabs: { key: typeof filter; label: string }[] = [
@@ -273,7 +279,7 @@ export default function NotificacionesPage() {
                         <span className="text-xs text-gray-400 flex-shrink-0">{formatRelative(item.createdAt)}</span>
                       </div>
                       <div className="flex items-center gap-2 mt-1">
-                        <Badge variant={inquiryStatusVariant[item.status] || 'default'} className="text-xs">{item.status}</Badge>
+                        <Badge variant={inquiryStatusVariant[item.status] || 'default'} className="text-xs">{STATUS_LABELS[item.status] || item.status}</Badge>
                         {(item.adName || item.source) && (
                           <span className="text-xs text-gray-500 truncate">{item.adName || item.source}</span>
                         )}

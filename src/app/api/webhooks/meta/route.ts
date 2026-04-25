@@ -112,7 +112,7 @@ export async function POST(request: Request) {
               phone: lead?.phone || null,
               message,
               source: lead?.adName ? `Meta Ads: ${lead.adName}` : 'Meta Ads',
-              status: 'NUEVA',
+              status: 'SIN_CONTACTAR',
               adName: lead?.adName || null,
               formId: lead?.formId || null,
               channel: 'META',

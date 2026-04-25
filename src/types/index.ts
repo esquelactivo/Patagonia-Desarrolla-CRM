@@ -4,7 +4,7 @@ export type PropertyStatus = 'DISPONIBLE' | 'RESERVADA' | 'VENDIDA' | 'ALQUILADA
 
 export type ContactType = 'COMPRADOR' | 'VENDEDOR' | 'INQUILINO' | 'PROPIETARIO'
 
-export type InquiryStatus = 'NUEVA' | 'CONTACTADA' | 'CALIFICADA' | 'DESCARTADA'
+export type InquiryStatus = 'SIN_CONTACTAR' | 'ESPERANDO_RESPUESTA' | 'CONTACTO_ESTABLECIDO' | 'EN_SEGUIMIENTO' | 'DESCARTADA' | 'ARCHIVADA'
 
 export type DealStage = 'VISITA' | 'OFERTA' | 'RESERVA' | 'CIERRE'
 export type DealStatus = 'ACTIVA' | 'GANADA' | 'PERDIDA'

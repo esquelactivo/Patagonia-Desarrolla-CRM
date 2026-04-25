@@ -12,7 +12,7 @@ async function getDashboardData() {
       await Promise.all([
         prisma.property.count({ where: { status: 'DISPONIBLE' } }),
         prisma.contact.count(),
-        prisma.inquiry.count({ where: { status: 'NUEVA' } }),
+        prisma.inquiry.count({ where: { status: { in: ['SIN_CONTACTAR', 'NUEVA'] } } }),
         prisma.deal.count({ where: { status: 'ACTIVA' } }),
         prisma.inquiry.findMany({
           take: 5,
@@ -39,11 +39,17 @@ async function getDashboardData() {
   }
 }
 
+const STATUS_LABELS: Record<string, string> = {
+  SIN_CONTACTAR: 'Sin contactar', ESPERANDO_RESPUESTA: 'Esp. respuesta',
+  CONTACTO_ESTABLECIDO: 'Contacto est.', EN_SEGUIMIENTO: 'En seguimiento',
+  DESCARTADA: 'Descartada', ARCHIVADA: 'Archivada',
+  NUEVA: 'Sin contactar', CONTACTADA: 'Esperando resp.', CALIFICADA: 'En seguimiento',
+}
+
 const statusVariant: Record<string, 'default' | 'success' | 'warning' | 'danger' | 'info'> = {
-  NUEVA: 'info',
-  CONTACTADA: 'warning',
-  CALIFICADA: 'success',
-  DESCARTADA: 'danger',
+  SIN_CONTACTAR: 'info', ESPERANDO_RESPUESTA: 'warning', CONTACTO_ESTABLECIDO: 'default',
+  EN_SEGUIMIENTO: 'success', DESCARTADA: 'danger', ARCHIVADA: 'default',
+  NUEVA: 'info', CONTACTADA: 'warning', CALIFICADA: 'success',
 }
 
 const stageOrder = ['VISITA', 'OFERTA', 'RESERVA', 'CIERRE']
@@ -148,7 +154,7 @@ export default async function DashboardPage() {
                         <TableCell className="text-gray-500">{inq.property?.title || '-'}</TableCell>
                         <TableCell>
                           <Badge variant={statusVariant[inq.status] || 'default'}>
-                            {inq.status}
+                            {STATUS_LABELS[inq.status] || inq.status}
                           </Badge>
                         </TableCell>
                       </TableRow>

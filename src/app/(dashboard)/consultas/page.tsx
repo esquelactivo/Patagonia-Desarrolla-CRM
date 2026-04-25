@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import Papa from 'papaparse'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -79,9 +80,22 @@ interface WaTemplate {
 }
 
 
-const statusTabs = ['Todas', 'NUEVA', 'CONTACTADA', 'CALIFICADA', 'DESCARTADA']
+const STATUS_LABELS: Record<string, string> = {
+  SIN_CONTACTAR: 'Sin contactar', ESPERANDO_RESPUESTA: 'Esperando respuesta',
+  CONTACTO_ESTABLECIDO: 'Contacto establecido', EN_SEGUIMIENTO: 'En seguimiento',
+  DESCARTADA: 'Descartada', ARCHIVADA: 'Archivada',
+  NUEVA: 'Sin contactar', CONTACTADA: 'Esperando respuesta', CALIFICADA: 'En seguimiento',
+}
+
+const normalizeStatus = (status: string) => {
+  const map: Record<string, string> = { NUEVA: 'SIN_CONTACTAR', CONTACTADA: 'ESPERANDO_RESPUESTA', CALIFICADA: 'EN_SEGUIMIENTO' }
+  return map[status] || status
+}
+
+const statusTabs = ['Todas', 'SIN_CONTACTAR', 'ESPERANDO_RESPUESTA', 'CONTACTO_ESTABLECIDO', 'EN_SEGUIMIENTO', 'DESCARTADA', 'ARCHIVADA']
 
 export default function ConsultasPage() {
+  const router = useRouter()
   const [inquiries, setInquiries] = useState<(Inquiry & { assignedTo?: string | null; assignedUser?: Agent | null })[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('Todas')
@@ -101,8 +115,9 @@ export default function ConsultasPage() {
   const [editingTemplate, setEditingTemplate] = useState<WaTemplate | null>(null)
   const [templateForm, setTemplateForm] = useState({ name: '', message: '' })
   const [newModalOpen, setNewModalOpen] = useState(false)
-  const [newForm, setNewForm] = useState({ name: '', email: '', phone: '', message: '', source: '', channel: '', adName: '', city: '', province: '', status: 'NUEVA', assignedTo: '' })
+  const [newForm, setNewForm] = useState({ name: '', email: '', phone: '', message: '', source: '', channel: '', adName: '', city: '', province: '', status: 'SIN_CONTACTAR', assignedTo: '' })
   const [savingNew, setSavingNew] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -167,8 +182,14 @@ export default function ConsultasPage() {
   const formularioOptions = ['Todos', ...Array.from(new Set(inquiries.map(i => i.adName).filter(Boolean))) as string[]]
 
   const filtered = inquiries
-    .filter(i => activeTab === 'Todas' || i.status === activeTab)
+    .filter(i => activeTab === 'Todas' || normalizeStatus(i.status) === activeTab)
     .filter(i => filterFormulario === 'Todos' || i.adName === filterFormulario)
+    .filter(i => !searchQuery ||
+      i.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (i.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (i.phone || '').includes(searchQuery) ||
+      (i.adName || '').toLowerCase().includes(searchQuery.toLowerCase())
+    )
     .sort((a, b) => {
       const diff = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
       return sortDateDir === 'desc' ? -diff : diff
@@ -241,9 +262,9 @@ export default function ConsultasPage() {
       await fetch(`/api/inquiries?id=${inquiry.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'CALIFICADA' }),
+        body: JSON.stringify({ status: 'EN_SEGUIMIENTO' }),
       })
-      setInquiries(inquiries.map(i => i.id === inquiry.id ? { ...i, status: 'CALIFICADA' } : i))
+      setInquiries(inquiries.map(i => i.id === inquiry.id ? { ...i, status: 'EN_SEGUIMIENTO' } : i))
       setSelectedInquiry(null)
       setPipelineSuccess(`${inquiry.name} fue pasado al pipeline correctamente.`)
       setTimeout(() => setPipelineSuccess(null), 4000)
@@ -293,7 +314,7 @@ export default function ConsultasPage() {
         const created = await res.json()
         setInquiries([created, ...inquiries])
         setNewModalOpen(false)
-        setNewForm({ name: '', email: '', phone: '', message: '', source: '', channel: '', adName: '', city: '', province: '', status: 'NUEVA', assignedTo: '' })
+        setNewForm({ name: '', email: '', phone: '', message: '', source: '', channel: '', adName: '', city: '', province: '', status: 'SIN_CONTACTAR', assignedTo: '' })
         setPipelineSuccess('Consulta creada exitosamente.')
         setTimeout(() => setPipelineSuccess(null), 3000)
       }
@@ -461,7 +482,7 @@ export default function ConsultasPage() {
             province: getCol(row, 'province', 'provincia') || null,
             propertyId: null,
             contactId: null,
-            status: 'NUEVA',
+            status: 'SIN_CONTACTAR',
             createdAt: parseMetaDate(dateRaw),
             updatedAt: new Date().toISOString(),
           }
@@ -512,7 +533,7 @@ export default function ConsultasPage() {
   }
 
   const counts = statusTabs.reduce((acc, tab) => {
-    acc[tab] = tab === 'Todas' ? inquiries.length : inquiries.filter((i) => i.status === tab).length
+    acc[tab] = tab === 'Todas' ? inquiries.length : inquiries.filter((i) => normalizeStatus(i.status) === tab).length
     return acc
   }, {} as Record<string, number>)
 
@@ -524,44 +545,107 @@ export default function ConsultasPage() {
         </div>
       )}
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <input ref={fileInputRef} type="file" accept=".csv,.tsv,.txt" onChange={handleFileSelect} className="hidden" />
+
+      {/* Mobile header */}
+      <div className="md:hidden space-y-3">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => router.back()}
+            className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Consultas</h2>
+            <p className="text-sm text-gray-500">{inquiries.length} consultas en total</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          <button
+            onClick={() => setNewModalOpen(true)}
+            className="flex flex-col items-center justify-center gap-1.5 py-3 bg-blue-600 text-white rounded-xl text-xs font-medium active:bg-blue-700 transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Nueva
+          </button>
+          <button
+            onClick={() => { setEditingTemplate(null); setTemplateForm({ name: '', message: '' }); setTemplatesModalOpen(true) }}
+            className="flex flex-col items-center justify-center gap-1.5 py-3 bg-gray-100 text-gray-700 rounded-xl text-xs font-medium hover:bg-gray-200 active:bg-gray-300 transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+            </svg>
+            Plantillas
+          </button>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex flex-col items-center justify-center gap-1.5 py-3 bg-gray-100 text-gray-700 rounded-xl text-xs font-medium hover:bg-gray-200 active:bg-gray-300 transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+            Importar
+          </button>
+        </div>
+      </div>
+
+      {/* Desktop header */}
+      <div className="hidden md:flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-gray-900">Consultas</h2>
           <p className="text-sm text-gray-500">{inquiries.length} consultas en total</p>
         </div>
         <div className="flex gap-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv,.tsv,.txt"
-            onChange={handleFileSelect}
-            className="hidden"
-          />
           <Button onClick={() => setNewModalOpen(true)}>
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
             Nueva consulta
           </Button>
-          <Button
-            variant="secondary"
-            onClick={() => { setEditingTemplate(null); setTemplateForm({ name: '', message: '' }); setTemplatesModalOpen(true) }}
-          >
+          <Button variant="secondary" onClick={() => { setEditingTemplate(null); setTemplateForm({ name: '', message: '' }); setTemplatesModalOpen(true) }}>
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
             </svg>
             Plantillas WA
           </Button>
-          <Button
-            variant="secondary"
-            onClick={() => fileInputRef.current?.click()}
-          >
+          <Button variant="secondary" onClick={() => fileInputRef.current?.click()}>
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
             </svg>
             Importar CSV
           </Button>
         </div>
+      </div>
+
+      {/* Search bar */}
+      <div className="relative">
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </div>
+        <input
+          type="text"
+          placeholder="Buscar por nombre, email, teléfono o formulario..."
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          className="w-full pl-9 pr-9 py-2.5 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery('')}
+            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Filtro Formulario */}
@@ -588,7 +672,7 @@ export default function ConsultasPage() {
               activeTab === tab ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'
             }`}
           >
-            {tab}
+            {tab === 'Todas' ? 'Todas' : STATUS_LABELS[tab]}
             <span className={`text-xs px-1.5 py-0.5 rounded-full ${activeTab === tab ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-500'}`}>
               {counts[tab]}
             </span>
@@ -617,15 +701,17 @@ export default function ConsultasPage() {
                     <p className="text-xs text-gray-500">{inquiry.source || '-'} · {formatDate(inquiry.createdAt)}</p>
                   </div>
                   <select
-                    value={inquiry.status}
+                    value={normalizeStatus(inquiry.status)}
                     onChange={(e) => { e.stopPropagation(); handleStatusChange(inquiry.id, e.target.value) }}
                     onClick={(e) => e.stopPropagation()}
                     className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white focus:outline-none"
                   >
-                    <option value="NUEVA">NUEVA</option>
-                    <option value="CONTACTADA">CONTACTADA</option>
-                    <option value="CALIFICADA">CALIFICADA</option>
-                    <option value="DESCARTADA">DESCARTADA</option>
+                    <option value="SIN_CONTACTAR">Sin contactar</option>
+                    <option value="ESPERANDO_RESPUESTA">Esperando respuesta</option>
+                    <option value="CONTACTO_ESTABLECIDO">Contacto establecido</option>
+                    <option value="EN_SEGUIMIENTO">En seguimiento</option>
+                    <option value="DESCARTADA">Descartada</option>
+                    <option value="ARCHIVADA">Archivada</option>
                   </select>
                 </div>
                 {inquiry.adName && <p className="text-xs font-medium text-blue-600 bg-blue-50 rounded px-2 py-0.5 w-fit">{inquiry.adName}</p>}
@@ -694,14 +780,16 @@ export default function ConsultasPage() {
                     <TableCell className="text-gray-500">{inquiry.source || '-'}</TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <select
-                        value={inquiry.status}
+                        value={normalizeStatus(inquiry.status)}
                         onChange={(e) => handleStatusChange(inquiry.id, e.target.value)}
                         className="text-xs border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
                       >
-                        <option value="NUEVA">NUEVA</option>
-                        <option value="CONTACTADA">CONTACTADA</option>
-                        <option value="CALIFICADA">CALIFICADA</option>
-                        <option value="DESCARTADA">DESCARTADA</option>
+                        <option value="SIN_CONTACTAR">Sin contactar</option>
+                        <option value="ESPERANDO_RESPUESTA">Esperando respuesta</option>
+                        <option value="CONTACTO_ESTABLECIDO">Contacto establecido</option>
+                        <option value="EN_SEGUIMIENTO">En seguimiento</option>
+                        <option value="DESCARTADA">Descartada</option>
+                        <option value="ARCHIVADA">Archivada</option>
                       </select>
                     </TableCell>
                     {isAdmin && (
@@ -731,7 +819,7 @@ export default function ConsultasPage() {
                             </svg>
                           </a>
                         )}
-                        {inquiry.status === 'CALIFICADA' && (
+                        {['EN_SEGUIMIENTO', 'CALIFICADA'].includes(inquiry.status) && (
                           <Button size="sm" onClick={() => handlePassToPipeline(inquiry)}>Pipeline</Button>
                         )}
                         <button onClick={() => handleDelete(inquiry.id)} title="Eliminar"
@@ -1140,10 +1228,12 @@ export default function ConsultasPage() {
                 onChange={e => setNewForm({ ...newForm, status: e.target.value })}
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
               >
-                <option value="NUEVA">Nueva</option>
-                <option value="CONTACTADA">Contactada</option>
-                <option value="CALIFICADA">Calificada</option>
+                <option value="SIN_CONTACTAR">Sin contactar</option>
+                <option value="ESPERANDO_RESPUESTA">Esperando respuesta</option>
+                <option value="CONTACTO_ESTABLECIDO">Contacto establecido</option>
+                <option value="EN_SEGUIMIENTO">En seguimiento</option>
                 <option value="DESCARTADA">Descartada</option>
+                <option value="ARCHIVADA">Archivada</option>
               </select>
             </div>
             {isAdmin && (

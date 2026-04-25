@@ -103,7 +103,7 @@ export function Header({ onMenuClick }: HeaderProps) {
       const res = await fetch('/api/inquiries')
       if (!res.ok) return
       const data: NotifInquiry[] = await res.json()
-      setInquiries(data.filter(i => (i as { status?: string }).status === 'NUEVA').slice(0, 10))
+      setInquiries(data.filter(i => ['SIN_CONTACTAR', 'NUEVA'].includes((i as { status?: string }).status || '')).slice(0, 10))
     } catch {}
   }
 

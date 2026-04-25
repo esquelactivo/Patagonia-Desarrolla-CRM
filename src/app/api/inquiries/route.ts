@@ -102,7 +102,7 @@ export async function POST(request: Request) {
         province: province || null,
         propertyId: body.propertyId || null,
         contactId: body.contactId || null,
-        status: body.status || 'NUEVA',
+        status: body.status || 'SIN_CONTACTAR',
         assignedTo,
         ...(body.createdAt ? { createdAt: new Date(body.createdAt) } : {}),
       },
