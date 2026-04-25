@@ -197,7 +197,7 @@ export function Header({ onMenuClick }: HeaderProps) {
           </button>
 
           {open && (
-            <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg border border-gray-200 z-50 overflow-hidden">
+            <div className="fixed right-4 top-16 w-80 max-w-[calc(100vw-2rem)] bg-white rounded-xl shadow-lg border border-gray-200 z-50 overflow-hidden">
               <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
                 <span className="text-sm font-semibold text-gray-900">Consultas nuevas</span>
                 <button onClick={handleGoToConsultas} className="text-xs text-blue-600 hover:underline">Ver todas</button>
