@@ -152,6 +152,16 @@ export function Header({ onMenuClick }: HeaderProps) {
   return (
     <header className="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-4 md:px-6">
       <div className="flex items-center gap-3">
+        {pathname !== '/dashboard' && (
+          <button
+            onClick={() => router.back()}
+            className="md:hidden p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+        )}
         <h1 className="text-xl font-semibold text-gray-900">{title}</h1>
       </div>
 
