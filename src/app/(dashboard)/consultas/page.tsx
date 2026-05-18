@@ -181,14 +181,19 @@ export default function ConsultasPage() {
   // Opciones únicas de formulario
   const formularioOptions = ['Todos', ...Array.from(new Set(inquiries.map(i => i.adName).filter(Boolean))) as string[]]
 
+  const searchLower = searchQuery.toLowerCase()
   const filtered = inquiries
     .filter(i => activeTab === 'Todas' || normalizeStatus(i.status) === activeTab)
     .filter(i => filterFormulario === 'Todos' || i.adName === filterFormulario)
     .filter(i => !searchQuery ||
-      i.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (i.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      i.name.toLowerCase().includes(searchLower) ||
+      (i.email || '').toLowerCase().includes(searchLower) ||
       (i.phone || '').includes(searchQuery) ||
-      (i.adName || '').toLowerCase().includes(searchQuery.toLowerCase())
+      (i.adName || '').toLowerCase().includes(searchLower) ||
+      (i.source || '').toLowerCase().includes(searchLower) ||
+      (i.city || '').toLowerCase().includes(searchLower) ||
+      (i.province || '').toLowerCase().includes(searchLower) ||
+      (i.message || '').toLowerCase().includes(searchLower)
     )
     .sort((a, b) => {
       const diff = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
@@ -621,7 +626,7 @@ export default function ConsultasPage() {
         </div>
         <input
           type="text"
-          placeholder="Buscar por nombre, email, teléfono o formulario..."
+          placeholder="Buscar por nombre, email, teléfono, ciudad, origen..."
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
           className="w-full pl-9 pr-9 py-2.5 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -637,6 +642,14 @@ export default function ConsultasPage() {
           </button>
         )}
       </div>
+
+      {searchQuery && (
+        <p className="text-sm text-gray-500 -mt-1">
+          {filtered.length === 0
+            ? 'Sin resultados para esa búsqueda'
+            : `${filtered.length} resultado${filtered.length !== 1 ? 's' : ''} para "${searchQuery}"`}
+        </p>
+      )}
 
       {/* Filtro Formulario */}
       <div className="flex items-center gap-2">
